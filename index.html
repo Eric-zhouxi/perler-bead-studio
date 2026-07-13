@@ -14,7 +14,7 @@
     <main class="app-shell">
       <header class="topbar">
         <a class="brand" href="#"><span class="brand-mark">◈</span>豆绘<span>PERLER STUDIO</span></a>
-        <div class="top-actions"><button class="icon-button" id="clearBtn" aria-label="清空画布" data-tooltip="清空画布"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button><button class="primary-button" id="saveBtn">导出图纸</button></div>
+        <div class="top-actions"><button class="user-button" id="userBtn" type="button"><span class="user-avatar" id="userAvatar">访</span><span id="userName">登录</span></button><button class="icon-button" id="clearBtn" aria-label="清空画布" data-tooltip="清空画布"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button><button class="primary-button" id="saveBtn">导出图纸</button></div>
       </header>
 
       <section class="hero">
@@ -37,8 +37,8 @@
 
           <div class="panel">
             <div class="panel-heading"><h2>图纸规格</h2><span>SIZE</span></div>
-            <div class="size-row"><label>宽 <input id="gridWidth" type="number" min="16" max="200" value="64" /></label><i>×</i><label>高 <input id="gridHeight" type="number" min="16" max="200" value="64" /></label></div>
-            <div class="preset-row"><button class="selected" data-size="64">64 × 64</button><button data-size="100">100 × 100</button><button data-size="150">150 × 150</button></div>
+            <div class="size-row"><label>宽 <input id="gridWidth" type="number" min="16" max="200" value="50" /></label><i>×</i><label>高 <input id="gridHeight" type="number" min="16" max="200" value="50" /></label></div>
+            <div class="preset-row"><button data-size="16">16 × 16</button><button data-size="24">24 × 24</button><button data-size="32">32 × 32</button><button data-size="40">40 × 40</button><button class="selected" data-size="50">50 × 50</button></div>
           </div>
 
           <div class="panel palette-panel">
@@ -47,12 +47,17 @@
               <button class="active" data-palette-size="221" aria-pressed="true">221 色</button>
               <button data-palette-size="291" aria-pressed="false">291 色</button>
             </div>
+            <section class="common-palette-box" aria-labelledby="commonPaletteTitle">
+              <div class="palette-subhead"><strong id="commonPaletteTitle">常用颜色</strong><span>20 色</span></div>
+              <div class="palette common-palette" id="commonPalette"></div>
+            </section>
+            <div class="palette-subhead all-colors-head"><strong>全部颜色</strong><span id="allPaletteCount">221 色</span></div>
             <div class="palette" id="palette"></div>
           </div>
         </aside>
 
         <section class="studio">
-          <div class="canvas-toolbar"><div><strong id="projectTitle">未命名图纸</strong><small id="gridInfo">32 × 32 格</small></div><div class="tool-buttons"><button id="undoBtn" aria-label="撤销" data-tooltip="撤销"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7H4v5"/><path d="M4 7l6 6"/><path d="M20 17a7 7 0 0 0-12-5"/></svg></button><button id="redoBtn" aria-label="重做" data-tooltip="向后一步" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7h5v5"/><path d="M20 7l-6 6"/><path d="M4 17a7 7 0 0 1 12-5"/></svg></button><button id="gridBtn" class="active" aria-label="网格" data-tooltip="网格">▦</button><button id="zoomOut" aria-label="缩小" data-tooltip="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大" data-tooltip="放大">+</button></div></div>
+          <div class="canvas-toolbar"><div><strong id="projectTitle">未命名图纸</strong><small id="gridInfo">50 × 50 格</small></div><div class="tool-buttons"><button id="undoBtn" aria-label="撤销" data-tooltip="撤销"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7H4v5"/><path d="M4 7l6 6"/><path d="M20 17a7 7 0 0 0-12-5"/></svg></button><button id="redoBtn" aria-label="重做" data-tooltip="向后一步" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7h5v5"/><path d="M20 7l-6 6"/><path d="M4 17a7 7 0 0 1 12-5"/></svg></button><button id="gridBtn" class="active" aria-label="网格" data-tooltip="网格">▦</button><button id="zoomOut" aria-label="缩小" data-tooltip="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大" data-tooltip="放大">+</button></div></div>
           <div class="canvas-stage" id="canvasStage"><canvas id="beadCanvas" width="640" height="640"></canvas><div class="empty-state" id="emptyState"><div class="spark">✦</div><h2>准备开始创作</h2><p>上传一张图片，或选择「自由创作」<br/>在画布上绘制你的第一颗拼豆。</p><button class="primary-button" id="startCreate">开始自由创作</button></div></div>
           <div class="canvas-footer"><span><i class="status-dot"></i><b id="usedColors">0</b> 种颜色已使用</span><span><b id="beadTotal">0</b> 颗拼豆</span></div>
         </section>
@@ -60,7 +65,43 @@
     </main>
 
     <div class="toast" id="toast"></div>
+    <div class="modal-backdrop hidden" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <section class="modal auth-modal">
+        <header class="modal-header"><div><span>ACCOUNT</span><h2 id="authTitle">登录本机账户</h2></div><button class="modal-close" data-close-modal="authModal" aria-label="关闭">×</button></header>
+        <div class="provider-tabs" role="group" aria-label="登录方式"><button class="active" data-auth-provider="phone">手机号</button><button data-auth-provider="wechat">微信</button><button data-auth-provider="qq">QQ</button></div>
+        <label class="field"><span id="accountIdLabel">手机号</span><input id="accountIdInput" autocomplete="username" placeholder="请输入手机号" /></label>
+        <label class="field"><span>昵称</span><input id="loginNickname" maxlength="20" placeholder="请输入昵称" /></label>
+        <p class="form-error" id="loginError"></p>
+        <button class="primary-button modal-primary" id="loginSubmit">登录</button>
+      </section>
+    </div>
+
+    <div class="modal-backdrop hidden" id="accountModal" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+      <section class="modal account-modal">
+        <header class="modal-header"><div><span>MY STUDIO</span><h2 id="accountTitle">我的豆绘</h2></div><button class="modal-close" data-close-modal="accountModal" aria-label="关闭">×</button></header>
+        <div class="account-tabs" role="tablist"><button data-account-tab="history" class="active">生成历史</button><button data-account-tab="inventory">拼豆库存</button><button data-account-tab="profile">个人资料</button></div>
+        <section class="account-view active" data-account-view="history"><div class="history-list" id="historyList"></div></section>
+        <section class="account-view" data-account-view="inventory"><div class="inventory-toolbar"><input id="inventorySearch" placeholder="搜索色号" /><span id="inventorySummary"></span></div><div class="inventory-list" id="inventoryList"></div></section>
+        <section class="account-view" data-account-view="profile">
+          <div class="profile-avatar-row"><button class="avatar-editor" id="avatarEditor" type="button"><img class="hidden" id="profileAvatarImage" alt="用户头像" /><span id="profileAvatarFallback">豆</span></button><input class="hidden" id="avatarInput" type="file" accept="image/*" /><div><strong>修改头像</strong><small>点击头像上传图片</small></div></div>
+          <label class="field"><span>昵称</span><input id="profileNickname" maxlength="20" /></label>
+          <label class="field"><span>地区</span><div class="field-action"><input id="profileRegion" maxlength="40" placeholder="省 / 市 / 地区" /><button id="locateBtn" type="button">定位</button></div></label>
+          <p class="location-status" id="locationStatus"></p>
+          <div class="profile-actions"><button class="text-button danger" id="logoutBtn">退出登录</button><button class="primary-button" id="saveProfileBtn">保存资料</button></div>
+        </section>
+      </section>
+    </div>
+
+    <div class="modal-backdrop hidden" id="saveChoiceModal" role="dialog" aria-modal="true" aria-labelledby="saveChoiceTitle">
+      <section class="modal compact-modal"><header class="modal-header"><div><span>NEW CANVAS</span><h2 id="saveChoiceTitle">保存当前图纸？</h2></div><button class="modal-close" data-close-modal="saveChoiceModal" aria-label="取消">×</button></header><p class="modal-copy">进入自由创作会清空当前画布。</p><div class="modal-actions"><button class="text-button" id="discardAndCreate">不保存</button><button class="primary-button" id="saveAndCreate">保存并继续</button></div></section>
+    </div>
+
+    <div class="modal-backdrop hidden" id="stockModal" role="dialog" aria-modal="true" aria-labelledby="stockTitle">
+      <section class="modal stock-modal"><header class="modal-header"><div><span>BEAD STOCK</span><h2 id="stockTitle">确认剩余拼豆数量</h2></div><button class="modal-close" data-close-modal="stockModal" aria-label="关闭">×</button></header><div class="low-stock-alert hidden" id="lowStockAlert"></div><div class="stock-adjust-list" id="stockAdjustList"></div><div class="modal-actions"><button class="primary-button" id="saveStockAdjustments">保存数量</button></div></section>
+    </div>
+
     <script src="palette.js"></script>
     <script src="app.js"></script>
+    <script src="account.js"></script>
   </body>
 </html>

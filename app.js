@@ -1,12 +1,13 @@
 let paletteSize = 221;
 let paletteData = MARD_PALETTES[paletteSize];
 let codes = paletteData.map(([id]) => id);
+const COMMON_COLOR_IDS = ['H1', 'H7', 'H3', 'H4', 'H6', 'A4', 'A6', 'A10', 'B4', 'B8', 'C4', 'C8', 'D6', 'D10', 'E4', 'E6', 'F3', 'F5', 'G4', 'G8'];
 const $ = id => document.getElementById(id);
 const canvas = $('beadCanvas');
 const ctx = canvas.getContext('2d');
 const WATERMARK = 'ERIC_ZHOU · PERLER STUDIO';
 const BRAND = 'ERIC_ZHOU · 豆绘';
-let W = 64, H = 64, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, history = [], redoHistory = [], timer;
+let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, history = [], redoHistory = [], timer;
 
 const cap = (v, a, b) => Math.max(a, Math.min(b, v));
 const cloneBeads = value => value.map(row => row.slice());
@@ -327,27 +328,32 @@ function draw(e) {
 }
 
 function palette() {
-  $('palette').innerHTML = '';
-  paletteData.forEach(c => {
-    const wrap = document.createElement('div');
-    wrap.className = 'palette-entry';
-    const b = document.createElement('button');
-    b.className = 'swatch' + (c === selected ? ' selected' : '');
-    b.style.background = c[1];
-    b.title = c[0];
-    b.onclick = () => {
-      selected = c;
-      palette();
-    };
-    const label = document.createElement('span');
-    label.textContent = c[0];
-    wrap.append(b, label);
-    $('palette').append(wrap);
-  });
+  const renderEntries = (container, colors) => {
+    container.innerHTML = '';
+    colors.forEach(c => {
+      const wrap = document.createElement('div');
+      wrap.className = 'palette-entry';
+      const b = document.createElement('button');
+      b.className = 'swatch' + (c === selected ? ' selected' : '');
+      b.style.background = c[1];
+      b.title = c[0];
+      b.onclick = () => {
+        selected = c;
+        palette();
+      };
+      const label = document.createElement('span');
+      label.textContent = c[0];
+      wrap.append(b, label);
+      container.append(wrap);
+    });
+  };
+  renderEntries($('commonPalette'), COMMON_COLOR_IDS.map(id => paletteById.get(id)).filter(Boolean));
+  renderEntries($('palette'), paletteData);
 }
 
-function setPaletteSize(size) {
+function setPaletteSize(size, options = {}) {
   if (!MARD_PALETTES[size] || size === paletteSize) return;
+  const { refresh = true, notify = true } = options;
   paletteSize = size;
   paletteData = MARD_PALETTES[size];
   rebuildPaletteMatcher();
@@ -358,15 +364,16 @@ function setPaletteSize(size) {
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', String(active));
   });
+  $('allPaletteCount').textContent = `${size} 色`;
   palette();
-  if (source) {
+  if (refresh && source) {
     convert();
-  } else if (beads.length) {
+  } else if (refresh && beads.length) {
     beads = beads.map(row => row.map(bead => bead ? paletteById.get(bead[0]) || near(hexToRgb(bead[1])) : null));
     resetHistory();
     render();
   }
-  showToast(`已切换至 MARD ${size} 色卡`);
+  if (notify) showToast(`已切换至 MARD ${size} 色卡`);
 }
 
 function resize() {
@@ -500,8 +507,13 @@ function downloadBlob(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function exportCompleted(message) {
+  showToast(message);
+  window.accountManager?.recordExport();
+}
+
 async function exportImage() {
-  if (!beads.length) {
+  if (!usedBeads().length) {
     showToast('请先创建或转换一张图纸');
     return;
   }
@@ -527,7 +539,7 @@ async function exportImage() {
     const writable = await saveHandle.createWritable();
     await writable.write(blob);
     await writable.close();
-    showToast('已保存高清水印图纸');
+    exportCompleted('已保存高清水印图纸');
     return;
   }
   if (!blob) {
@@ -540,7 +552,7 @@ async function exportImage() {
     a.download = safeFileName(input);
     a.href = out.toDataURL('image/png');
     a.click();
-    showToast('已导出高清水印图纸');
+    exportCompleted('已导出高清水印图纸');
     return;
   }
 
@@ -550,7 +562,7 @@ async function exportImage() {
     return;
   }
   downloadBlob(blob, safeFileName(input));
-  showToast('已导出高清水印图纸');
+  exportCompleted('已导出高清水印图纸');
 }
 
 function clearCanvas() {
@@ -636,9 +648,71 @@ function activate(mode) {
   }
 }
 
-document.querySelectorAll('.mode').forEach(b => b.onclick = () => activate(b.dataset.mode));
+function resetImportedImage() {
+  source = null;
+  $('imageInput').value = '';
+  $('previewWrap').classList.add('hidden');
+  document.querySelector('.upload-zone').classList.remove('hidden');
+}
+
+function startFreshCreate() {
+  resetImportedImage();
+  blank();
+  $('projectTitle').textContent = '未命名图纸';
+  $('emptyState').classList.add('hidden');
+  activate('create');
+}
+
+function snapshotPattern() {
+  return {
+    title: $('projectTitle').textContent || '未命名图纸',
+    width: W,
+    height: H,
+    paletteSize,
+    beads: beads.map(row => row.map(bead => bead?.[0] || null)),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function loadPattern(snapshot) {
+  if (!snapshot?.beads?.length) return;
+  resetImportedImage();
+  setPaletteSize(snapshot.paletteSize || 221, { refresh: false, notify: false });
+  W = cap(+snapshot.width, 16, 200);
+  H = cap(+snapshot.height, 16, 200);
+  $('gridWidth').value = W;
+  $('gridHeight').value = H;
+  beads = Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => {
+    const id = snapshot.beads[y]?.[x];
+    return id ? paletteById.get(id) || near(hexToRgb(MARD_PALETTES[291].find(item => item[0] === id)?.[1] || '#ffffff')) : null;
+  }));
+  resetHistory();
+  $('projectTitle').textContent = snapshot.title || '历史图纸';
+  $('emptyState').classList.add('hidden');
+  activate('create');
+  render();
+}
+
+window.studioApi = {
+  getSnapshot: snapshotPattern,
+  getUsage: () => colorCounts(),
+  getPalette: size => MARD_PALETTES[size || paletteSize],
+  getPaletteSize: () => paletteSize,
+  hasContent: () => usedBeads().length > 0,
+  loadPattern,
+  notify: showToast,
+  startFreshCreate,
+};
+
+document.querySelectorAll('.mode').forEach(b => b.onclick = () => {
+  if (b.dataset.mode === 'create') {
+    window.accountManager?.requestFreshCreate() || startFreshCreate();
+  } else {
+    activate('image');
+  }
+});
 document.querySelectorAll('[data-palette-size]').forEach(button => button.onclick = () => setPaletteSize(+button.dataset.paletteSize));
-$('startCreate').onclick = () => activate('create');
+$('startCreate').onclick = startFreshCreate;
 document.head.insertAdjacentHTML('beforeend', '<style>.canvas-stage canvas{max-width:none!important;max-height:none!important;flex:none}.palette-entry{text-align:center;font:9px monospace;color:#666}.palette-entry .swatch{display:block}.legend-head{display:flex;justify-content:space-between;margin:24px 0 10px;font-size:12px}.legend-head span,.watermark{font:10px monospace;color:#8b877e}.legend-list{display:flex;flex-wrap:wrap;gap:8px}.legend-item{display:flex;align-items:center;gap:5px;border:1px solid #dedbd4;padding:5px 7px;font:10px monospace;background:#fff}.legend-item i{width:13px;height:13px;border-radius:50%;border:1px solid #0002}.legend-item small{color:#777}.watermark{text-align:right;letter-spacing:1px;margin:12px 0}</style>');
 setHistoryButtons();
 palette();
