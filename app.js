@@ -6,9 +6,14 @@ const canvas = $('beadCanvas');
 const ctx = canvas.getContext('2d');
 const WATERMARK = 'ERIC_ZHOU · PERLER STUDIO';
 const BRAND = 'ERIC_ZHOU · 豆绘';
-let W = 64, H = 64, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, history = [], timer;
+let W = 64, H = 64, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, history = [], redoHistory = [], timer;
 
 const cap = (v, a, b) => Math.max(a, Math.min(b, v));
+const cloneBeads = value => value.map(row => row.slice());
+const usedBeads = () => beads.flat().filter(Boolean);
+const rgbDistance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const colorKey = c => c.map(v => cap(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('');
+
 const colour = c => {
   const [h, s, l] = c.match(/\d+/g).map(Number);
   const a = s / 100 * Math.min(l / 100, 1 - l / 100);
@@ -21,7 +26,27 @@ const colour = c => {
 const p = paletteData.map(a => [a, colour(a[1])]);
 const dis = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
 const near = (a, set = p) => set.reduce((v, x) => dis(a, x[1]) < dis(a, v[1]) ? x : v)[0];
-const usedBeads = () => beads.flat().filter(Boolean);
+
+function normalizeRgb(rgb) {
+  const [r, g, b] = rgb;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const spread = max - min;
+  const luminance = r * .299 + g * .587 + b * .114;
+  if (max < 56) return [0, 0, 0];
+  if (min > 238 && spread < 22) return [255, 255, 255];
+  if (spread < 18 || (max < 100 && spread < 38)) {
+    const gray = cap(Math.round(luminance / 16) * 16, 0, 255);
+    return [gray, gray, gray];
+  }
+  const step = max < 92 ? 16 : 12;
+  return [r, g, b].map(v => cap(Math.round(v / step) * step, 0, 255));
+}
+
+function averageColor(list) {
+  const sum = list.reduce((acc, c) => [acc[0] + c[0], acc[1] + c[1], acc[2] + c[2]], [0, 0, 0]);
+  return sum.map(v => v / Math.max(1, list.length));
+}
 
 function colorCounts(list = usedBeads()) {
   const counts = new Map();
@@ -32,6 +57,25 @@ function colorCounts(list = usedBeads()) {
 function textColor(fill) {
   const q = colour(fill);
   return (q[0] * 299 + q[1] * 587 + q[2] * 114) > 145000 ? '#20201e' : '#fff';
+}
+
+function setHistoryButtons() {
+  const undo = $('undoBtn');
+  const redo = $('redoBtn');
+  if (undo) undo.disabled = history.length === 0;
+  if (redo) redo.disabled = redoHistory.length === 0;
+}
+
+function resetHistory() {
+  history = [];
+  redoHistory = [];
+  setHistoryButtons();
+}
+
+function pushHistory() {
+  history.push(cloneBeads(beads));
+  redoHistory = [];
+  setHistoryButtons();
 }
 
 function drawNumbers(target, cell, highQuality = false) {
@@ -115,6 +159,7 @@ function render() {
   $('usedColors').textContent = new Set(a.map(x => x[0])).size;
   $('gridInfo').textContent = `${W} × ${H} 格`;
   legend(a);
+  setHistoryButtons();
 }
 
 function legend(list) {
@@ -134,14 +179,11 @@ function blank(w = +$('gridWidth').value, h = +$('gridHeight').value) {
   W = cap(w, 16, 200);
   H = cap(h, 16, 200);
   beads = Array.from({ length: H }, () => Array(W).fill(null));
-  history = [];
+  resetHistory();
   render();
 }
 
-function convert() {
-  if (!source) return;
-  W = cap(+$('gridWidth').value, 16, 200);
-  H = cap(+$('gridHeight').value, 16, 200);
+function readSourcePixels() {
   const t = document.createElement('canvas');
   t.width = W;
   t.height = H;
@@ -152,19 +194,212 @@ function convert() {
   const w = source.naturalWidth * s;
   const h = source.naturalHeight * s;
   x.imageSmoothingEnabled = true;
+  x.imageSmoothingQuality = 'high';
   x.drawImage(source, (W - w) / 2, (H - h) / 2, w, h);
   const d = x.getImageData(0, 0, W, H).data;
-  const a = [];
-  for (let i = 0; i < d.length; i += 4) a.push([d[i], d[i + 1], d[i + 2]]);
-  const first = a.map(v => near(v));
-  const m = new Map();
-  first.forEach(v => m.set(v[0], (m.get(v[0]) || 0) + 1));
-  const keep = [...m]
+  const pixels = [];
+  for (let i = 0; i < d.length; i += 4) pixels.push([d[i], d[i + 1], d[i + 2]]);
+  return pixels;
+}
+
+function detectUniformBackground(pixels) {
+  const border = [];
+  for (let x = 0; x < W; x++) {
+    border.push(pixels[x], pixels[(H - 1) * W + x]);
+  }
+  for (let y = 1; y < H - 1; y++) {
+    border.push(pixels[y * W], pixels[y * W + W - 1]);
+  }
+  const avg = averageColor(border);
+  const distances = border.map(c => rgbDistance(c, avg));
+  const closeRatio = distances.filter(v => v < 34).length / Math.max(1, distances.length);
+  const meanDistance = distances.reduce((a, b) => a + b, 0) / Math.max(1, distances.length);
+  if (closeRatio < .86 || meanDistance > 24) return null;
+  return {
+    rgb: normalizeRgb(avg),
+    threshold: cap(Math.round(meanDistance * 1.8 + 34), 38, 72),
+  };
+}
+
+function cleanForegroundMask(mask) {
+  const out = mask.slice();
+  const at = (x, y) => x >= 0 && y >= 0 && x < W && y < H && mask[y * W + x];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let neighbors = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if ((dx || dy) && at(x + dx, y + dy)) neighbors++;
+        }
+      }
+      const i = y * W + x;
+      if (mask[i] && neighbors === 0) out[i] = false;
+      if (!mask[i] && neighbors >= 6) out[i] = true;
+    }
+  }
+  return out;
+}
+
+function dilateMask(mask) {
+  const out = mask.slice();
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!mask[y * W + x]) continue;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= 0 && ny >= 0 && nx < W && ny < H) out[ny * W + nx] = true;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function findComponents(mask) {
+  const seen = new Uint8Array(mask.length);
+  const components = [];
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i] || seen[i]) continue;
+    const q = [i];
+    const comp = [];
+    seen[i] = 1;
+    for (let qi = 0; qi < q.length; qi++) {
+      const cur = q[qi];
+      comp.push(cur);
+      const x = cur % W;
+      const y = Math.floor(cur / W);
+      dirs.forEach(([dx, dy]) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        const ni = ny * W + nx;
+        if (nx >= 0 && ny >= 0 && nx < W && ny < H && mask[ni] && !seen[ni]) {
+          seen[ni] = 1;
+          q.push(ni);
+        }
+      });
+    }
+    components.push(comp);
+  }
+  return components.sort((a, b) => b.length - a.length);
+}
+
+function ensureConnected(mask, backgroundMask, foregroundMask) {
+  const components = findComponents(mask);
+  if (components.length < 2) return;
+  const anchor = components[0][0];
+  const ax = anchor % W;
+  const ay = Math.floor(anchor / W);
+  components.slice(1).forEach(comp => {
+    const point = comp[0];
+    let x = point % W;
+    let y = Math.floor(point / W);
+    const stepX = x < ax ? 1 : -1;
+    while (x !== ax) {
+      const i = y * W + x;
+      mask[i] = true;
+      if (!foregroundMask[i]) backgroundMask[i] = true;
+      x += stepX;
+    }
+    const stepY = y < ay ? 1 : -1;
+    while (y !== ay) {
+      const i = y * W + x;
+      mask[i] = true;
+      if (!foregroundMask[i]) backgroundMask[i] = true;
+      y += stepY;
+    }
+  });
+}
+
+function smoothColors(colors, keepMask, backgroundMask) {
+  const out = colors.map(c => c.slice());
+  const paletteByKey = new Map(colors.map(c => [colorKey(c), c]));
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (!keepMask[i] || backgroundMask[i]) continue;
+      const counts = new Map();
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          const ni = ny * W + nx;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H || !keepMask[ni] || backgroundMask[ni]) continue;
+          const key = colorKey(colors[ni]);
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+      }
+      const best = [...counts].sort((a, b) => b[1] - a[1])[0];
+      if (!best || best[0] === colorKey(colors[i])) continue;
+      const neighborColor = paletteByKey.get(best[0]);
+      if (best[1] >= 5 || (best[1] >= 2 && rgbDistance(colors[i], neighborColor) > 48)) {
+        out[i] = neighborColor.slice();
+      }
+    }
+  }
+  return out;
+}
+
+function autoPaletteSet(colors, keepMask, backgroundMask, backgroundRgb) {
+  const counts = new Map();
+  colors.forEach((rgb, i) => {
+    if (!keepMask[i]) return;
+    const src = backgroundMask[i] ? backgroundRgb : rgb;
+    const item = near(src);
+    counts.set(item[0], (counts.get(item[0]) || 0) + 1);
+  });
+  const total = [...counts.values()].reduce((a, b) => a + b, 0);
+  const minCount = Math.max(2, Math.ceil(total * .0025));
+  let ids = [...counts]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, +$('colorCount').value)
-    .map(([id]) => p.find(v => v[0][0] === id));
-  beads = Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => near(a[y * W + x], keep)));
-  history = [];
+    .filter(([, count], i) => count >= minCount || i < 8)
+    .slice(0, 72)
+    .map(([id]) => id);
+  if (backgroundRgb) ids.unshift(near(backgroundRgb)[0]);
+  ids = [...new Set(ids)];
+  return ids.map(id => p.find(v => v[0][0] === id)).filter(Boolean);
+}
+
+function buildConversionMasks(pixels) {
+  const total = W * H;
+  const bg = detectUniformBackground(pixels);
+  const keepMask = Array(total).fill(true);
+  const backgroundMask = Array(total).fill(false);
+  if (!bg) return { keepMask, backgroundMask, backgroundRgb: null };
+
+  const foreground = pixels.map(px => rgbDistance(normalizeRgb(px), bg.rgb) > bg.threshold);
+  const foregroundMask = cleanForegroundMask(foreground);
+  const foregroundCount = foregroundMask.filter(Boolean).length;
+  if (!foregroundCount || foregroundCount > total * .92) return { keepMask, backgroundMask, backgroundRgb: null };
+
+  const ring = dilateMask(foregroundMask);
+  for (let i = 0; i < total; i++) {
+    keepMask[i] = ring[i];
+    backgroundMask[i] = ring[i] && !foregroundMask[i];
+  }
+  ensureConnected(keepMask, backgroundMask, foregroundMask);
+  return { keepMask, backgroundMask, backgroundRgb: bg.rgb };
+}
+
+function convert() {
+  if (!source) return;
+  W = cap(+$('gridWidth').value, 16, 200);
+  H = cap(+$('gridHeight').value, 16, 200);
+  const pixels = readSourcePixels();
+  const { keepMask, backgroundMask, backgroundRgb } = buildConversionMasks(pixels);
+  let colors = pixels.map(normalizeRgb);
+  if (backgroundRgb) colors = smoothColors(colors, keepMask, backgroundMask);
+  const keepSet = autoPaletteSet(colors, keepMask, backgroundMask, backgroundRgb);
+  beads = Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => {
+    const i = y * W + x;
+    if (!keepMask[i]) return null;
+    const src = backgroundMask[i] && backgroundRgb ? backgroundRgb : colors[i];
+    return near(src, keepSet);
+  }));
+  resetHistory();
   $('emptyState').classList.add('hidden');
   $('projectTitle').textContent = '图片转拼豆图纸';
   render();
@@ -237,8 +472,9 @@ function drawExportLegend(target, counts, x, y, width, itemW, itemH) {
   target.fillText('用色清单', x, y);
   target.font = '500 16px "DM Mono", monospace';
   counts.forEach(([id, count], i) => {
-    const col = Math.floor(i % Math.max(1, Math.floor(width / itemW)));
-    const row = Math.floor(i / Math.max(1, Math.floor(width / itemW)));
+    const colCount = Math.max(1, Math.floor(width / itemW));
+    const col = Math.floor(i % colCount);
+    const row = Math.floor(i / colCount);
     const left = x + col * itemW;
     const top = y + 42 + row * itemH;
     const c = paletteData.find(v => v[0] === id);
@@ -305,34 +541,98 @@ function showToast(message) {
   showToast.timer = setTimeout(() => toast.classList.remove('show'), 1800);
 }
 
-function exportImage() {
+function safeFileName(name) {
+  const base = (name || '拼豆图纸').replace(/[<>:"/\\|?*\x00-\x1F]/g, '').trim() || '拼豆图纸';
+  return base.toLowerCase().endsWith('.png') ? base : `${base}.png`;
+}
+
+function defaultExportName() {
+  return safeFileName(`${$('projectTitle').textContent || '拼豆图纸'}_${W}x${H}`);
+}
+
+function canvasToBlob(out) {
+  return new Promise(resolve => {
+    if (out.toBlob) out.toBlob(resolve, 'image/png');
+    else resolve(null);
+  });
+}
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.download = name;
+  a.href = url;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function exportImage() {
   if (!beads.length) {
     showToast('请先创建或转换一张图纸');
     return;
   }
   const out = buildExportCanvas();
-  const download = href => {
-    const a = document.createElement('a');
-    a.download = `拼豆图纸_${W}x${H}.png`;
-    a.href = href;
-    a.click();
-  };
-  if (out.toBlob) {
-    out.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      download(url);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast('已导出高清水印图纸');
-    }, 'image/png');
-  } else {
-    download(out.toDataURL('image/png'));
-    showToast('已导出高清水印图纸');
+  const suggestedName = defaultExportName();
+  let saveHandle = null;
+  if (window.showSaveFilePicker) {
+    try {
+      saveHandle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{ description: 'PNG 图片', accept: { 'image/png': ['.png'] } }],
+      });
+    } catch (error) {
+      if (error && error.name === 'AbortError') {
+        showToast('已取消导出');
+        return;
+      }
+    }
   }
+
+  const blob = await canvasToBlob(out);
+  if (saveHandle && blob) {
+    const writable = await saveHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    showToast('已保存高清水印图纸');
+    return;
+  }
+  if (!blob) {
+    const input = window.prompt('请输入图纸文件名', suggestedName);
+    if (input === null) {
+      showToast('已取消导出');
+      return;
+    }
+    const a = document.createElement('a');
+    a.download = safeFileName(input);
+    a.href = out.toDataURL('image/png');
+    a.click();
+    showToast('已导出高清水印图纸');
+    return;
+  }
+
+  const input = window.prompt('请输入图纸文件名', suggestedName);
+  if (input === null) {
+    showToast('已取消导出');
+    return;
+  }
+  downloadBlob(blob, safeFileName(input));
+  showToast('已导出高清水印图纸');
+}
+
+function clearCanvas() {
+  if (!beads.length) {
+    showToast('当前没有图纸');
+    return;
+  }
+  pushHistory();
+  beads = Array.from({ length: H }, () => Array(W).fill(null));
+  render();
 }
 
 canvas.onpointerdown = e => {
+  if (!beads.length) return;
   canvas.setPointerCapture(e.pointerId);
-  history.push(beads.map(r => r.slice()));
+  pushHistory();
   draw(e);
 };
 canvas.onpointermove = e => e.buttons && draw(e);
@@ -343,10 +643,6 @@ document.querySelectorAll('[data-size]').forEach(b => b.onclick = () => {
   source ? convert() : blank(n, n);
 });
 ['gridWidth', 'gridHeight'].forEach(id => $(id).oninput = resize);
-$('colorCount').oninput = e => {
-  $('colorCountValue').textContent = e.target.value + ' 色';
-  if (source) resize();
-};
 $('imageInput').onchange = e => {
   const f = e.target.files[0];
   const i = new Image();
@@ -382,31 +678,25 @@ $('gridBtn').onclick = () => {
   render();
 };
 $('undoBtn').onclick = () => {
-  if (history.length) {
-    beads = history.pop();
-    render();
-  }
+  if (!history.length) return;
+  redoHistory.push(cloneBeads(beads));
+  beads = history.pop();
+  render();
 };
-$('clearBtn').onclick = () => blank(W, H);
+$('redoBtn').onclick = () => {
+  if (!redoHistory.length) return;
+  history.push(cloneBeads(beads));
+  beads = redoHistory.pop();
+  render();
+};
+$('clearBtn').onclick = clearCanvas;
 $('saveBtn').onclick = exportImage;
-$('undoBtn').textContent = '↶ 回退';
-const del = document.createElement('button');
-del.id = 'deleteBtn';
-del.textContent = '清空';
-del.title = '一键删除';
-$('undoBtn').after(del);
-del.onclick = () => blank(W, H);
 
 function activate(mode) {
   const creating = mode === 'create';
   document.querySelectorAll('.mode').forEach(q => q.classList.toggle('active', q.dataset.mode === mode));
   document.querySelector('.image-panel').style.display = creating ? 'none' : 'block';
-  const range = $('colorCount'), label = range.previousElementSibling;
-  range.style.display = creating ? 'none' : '';
-  label.style.display = creating ? 'none' : '';
   if (creating) {
-    range.value = 221;
-    $('colorCountValue').textContent = '221 色';
     if (!beads.length) blank();
     $('emptyState').classList.add('hidden');
   }
@@ -415,4 +705,5 @@ function activate(mode) {
 document.querySelectorAll('.mode').forEach(b => b.onclick = () => activate(b.dataset.mode));
 $('startCreate').onclick = () => activate('create');
 document.head.insertAdjacentHTML('beforeend', '<style>.canvas-stage canvas{max-width:none!important;max-height:none!important;flex:none}.palette-entry{text-align:center;font:9px monospace;color:#666}.palette-entry .swatch{display:block}.legend-head{display:flex;justify-content:space-between;margin:24px 0 10px;font-size:12px}.legend-head span,.watermark{font:10px monospace;color:#8b877e}.legend-list{display:flex;flex-wrap:wrap;gap:8px}.legend-item{display:flex;align-items:center;gap:5px;border:1px solid #dedbd4;padding:5px 7px;font:10px monospace;background:#fff}.legend-item i{width:13px;height:13px;border-radius:50%;border:1px solid #0002}.legend-item small{color:#777}.watermark{text-align:right;letter-spacing:1px;margin:12px 0}</style>');
+setHistoryButtons();
 palette();
