@@ -36,13 +36,13 @@
 
           <div class="panel">
             <div class="panel-heading"><h2>图纸规格</h2><span>SIZE</span></div>
-            <div class="size-row"><label>宽 <input id="gridWidth" type="number" min="8" max="80" value="32" /></label><i>×</i><label>高 <input id="gridHeight" type="number" min="8" max="80" value="32" /></label></div>
-            <div class="preset-row"><button data-size="16">16 × 16</button><button class="selected" data-size="32">32 × 32</button><button data-size="48">48 × 48</button></div>
-            <label class="range-label">颜色数量 <output id="colorCountValue">20 色</output></label><input id="colorCount" type="range" min="4" max="30" value="20" />
+            <div class="size-row"><label>宽 <input id="gridWidth" type="number" min="16" max="200" value="64" /></label><i>×</i><label>高 <input id="gridHeight" type="number" min="16" max="200" value="64" /></label></div>
+            <div class="preset-row"><button class="selected" data-size="64">64 × 64</button><button data-size="100">100 × 100</button><button data-size="150">150 × 150</button></div>
+            <label class="range-label">颜色数量 <output id="colorCountValue">64 色</output></label><input id="colorCount" type="range" min="4" max="221" value="64" />
           </div>
 
           <div class="panel palette-panel">
-            <div class="panel-heading"><h2>拼豆色板</h2><span id="paletteCount">20 色</span></div>
+            <div class="panel-heading"><h2>拼豆色板</h2><span id="paletteCount">221 色</span></div>
             <div class="palette" id="palette"></div>
           </div>
         </aside>
