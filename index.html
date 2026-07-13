@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>豆绘 · 拼豆图纸</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#"><span class="brand-mark">◈</span>豆绘<span>PERLER STUDIO</span></a>
+        <div class="top-actions"><button class="text-button" id="clearBtn">清空画布</button><button class="primary-button" id="saveBtn">导出图纸</button></div>
+      </header>
+
+      <section class="hero">
+        <div><p class="eyebrow">MAKE IT PIXEL, MAKE IT YOURS</p><h1>把灵感，拼成一颗颗<br/><em>小小的彩色豆子。</em></h1></div>
+        <p class="intro">上传喜欢的图片自动转为拼豆图纸，或从空白画布开始创作。每一格，都由你决定。</p>
+      </section>
+
+      <section class="mode-tabs" aria-label="创作模式">
+        <button class="mode active" data-mode="image"><span>01</span>图片转图纸</button>
+        <button class="mode" data-mode="create"><span>02</span>自由创作</button>
+      </section>
+
+      <section class="workspace">
+        <aside class="controls">
+          <div class="panel image-panel">
+            <div class="panel-heading"><h2>导入图片</h2><span>IMAGE</span></div>
+            <label class="upload-zone" id="uploadZone" for="imageInput"><input id="imageInput" type="file" accept="image/*" /><span class="upload-icon">↑</span><strong>选择一张图片</strong><small>JPG、PNG 或 WEBP 格式</small></label>
+            <div class="preview-wrap hidden" id="previewWrap"><img id="imagePreview" alt="上传的原图预览" /><button id="removeImage" aria-label="移除图片">×</button></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-heading"><h2>图纸规格</h2><span>SIZE</span></div>
+            <div class="size-row"><label>宽 <input id="gridWidth" type="number" min="8" max="80" value="32" /></label><i>×</i><label>高 <input id="gridHeight" type="number" min="8" max="80" value="32" /></label></div>
+            <div class="preset-row"><button data-size="16">16 × 16</button><button class="selected" data-size="32">32 × 32</button><button data-size="48">48 × 48</button></div>
+            <label class="range-label">颜色数量 <output id="colorCountValue">20 色</output></label><input id="colorCount" type="range" min="4" max="30" value="20" />
+          </div>
+
+          <div class="panel palette-panel">
+            <div class="panel-heading"><h2>拼豆色板</h2><span id="paletteCount">20 色</span></div>
+            <div class="palette" id="palette"></div>
+          </div>
+        </aside>
+
+        <section class="studio">
+          <div class="canvas-toolbar"><div><strong id="projectTitle">未命名图纸</strong><small id="gridInfo">32 × 32 格</small></div><div class="tool-buttons"><button id="undoBtn" title="撤销">↶</button><button id="gridBtn" class="active" title="网格">▦</button><button id="zoomOut" title="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" title="放大">+</button></div></div>
+          <div class="canvas-stage" id="canvasStage"><canvas id="beadCanvas" width="640" height="640"></canvas><div class="empty-state" id="emptyState"><div class="spark">✦</div><h2>准备开始创作</h2><p>上传一张图片，或选择「自由创作」<br/>在画布上绘制你的第一颗拼豆。</p><button class="primary-button" id="startCreate">开始自由创作</button></div></div>
+          <div class="canvas-footer"><span><i class="status-dot"></i><b id="usedColors">0</b> 种颜色已使用</span><span><b id="beadTotal">0</b> 颗拼豆</span></div>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast" id="toast"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
