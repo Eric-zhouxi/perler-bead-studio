@@ -51,7 +51,7 @@ function averageColor(list) {
 function colorCounts(list = usedBeads()) {
   const counts = new Map();
   list.forEach(c => counts.set(c[0], (counts.get(c[0]) || 0) + 1));
-  return [...counts].sort(([a], [b]) => codes.indexOf(a) - codes.indexOf(b));
+  return [...counts].sort(([a, countA], [b, countB]) => countB - countA || codes.indexOf(a) - codes.indexOf(b));
 }
 
 function textColor(fill) {
@@ -240,86 +240,13 @@ function cleanForegroundMask(mask) {
   return out;
 }
 
-function dilateMask(mask) {
-  const out = mask.slice();
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      if (!mask[y * W + x]) continue;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx >= 0 && ny >= 0 && nx < W && ny < H) out[ny * W + nx] = true;
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function findComponents(mask) {
-  const seen = new Uint8Array(mask.length);
-  const components = [];
-  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  for (let i = 0; i < mask.length; i++) {
-    if (!mask[i] || seen[i]) continue;
-    const q = [i];
-    const comp = [];
-    seen[i] = 1;
-    for (let qi = 0; qi < q.length; qi++) {
-      const cur = q[qi];
-      comp.push(cur);
-      const x = cur % W;
-      const y = Math.floor(cur / W);
-      dirs.forEach(([dx, dy]) => {
-        const nx = x + dx;
-        const ny = y + dy;
-        const ni = ny * W + nx;
-        if (nx >= 0 && ny >= 0 && nx < W && ny < H && mask[ni] && !seen[ni]) {
-          seen[ni] = 1;
-          q.push(ni);
-        }
-      });
-    }
-    components.push(comp);
-  }
-  return components.sort((a, b) => b.length - a.length);
-}
-
-function ensureConnected(mask, backgroundMask, foregroundMask) {
-  const components = findComponents(mask);
-  if (components.length < 2) return;
-  const anchor = components[0][0];
-  const ax = anchor % W;
-  const ay = Math.floor(anchor / W);
-  components.slice(1).forEach(comp => {
-    const point = comp[0];
-    let x = point % W;
-    let y = Math.floor(point / W);
-    const stepX = x < ax ? 1 : -1;
-    while (x !== ax) {
-      const i = y * W + x;
-      mask[i] = true;
-      if (!foregroundMask[i]) backgroundMask[i] = true;
-      x += stepX;
-    }
-    const stepY = y < ay ? 1 : -1;
-    while (y !== ay) {
-      const i = y * W + x;
-      mask[i] = true;
-      if (!foregroundMask[i]) backgroundMask[i] = true;
-      y += stepY;
-    }
-  });
-}
-
-function smoothColors(colors, keepMask, backgroundMask) {
+function smoothColors(colors, backgroundMask) {
   const out = colors.map(c => c.slice());
   const paletteByKey = new Map(colors.map(c => [colorKey(c), c]));
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
-      if (!keepMask[i] || backgroundMask[i]) continue;
+      if (backgroundMask[i]) continue;
       const counts = new Map();
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
@@ -327,7 +254,7 @@ function smoothColors(colors, keepMask, backgroundMask) {
           const nx = x + dx;
           const ny = y + dy;
           const ni = ny * W + nx;
-          if (nx < 0 || ny < 0 || nx >= W || ny >= H || !keepMask[ni] || backgroundMask[ni]) continue;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H || backgroundMask[ni]) continue;
           const key = colorKey(colors[ni]);
           counts.set(key, (counts.get(key) || 0) + 1);
         }
@@ -343,12 +270,10 @@ function smoothColors(colors, keepMask, backgroundMask) {
   return out;
 }
 
-function autoPaletteSet(colors, keepMask, backgroundMask, backgroundRgb) {
+function autoPaletteSet(colors) {
   const counts = new Map();
-  colors.forEach((rgb, i) => {
-    if (!keepMask[i]) return;
-    const src = backgroundMask[i] ? backgroundRgb : rgb;
-    const item = near(src);
+  colors.forEach(rgb => {
+    const item = near(rgb);
     counts.set(item[0], (counts.get(item[0]) || 0) + 1);
   });
   const total = [...counts.values()].reduce((a, b) => a + b, 0);
@@ -358,30 +283,8 @@ function autoPaletteSet(colors, keepMask, backgroundMask, backgroundRgb) {
     .filter(([, count], i) => count >= minCount || i < 8)
     .slice(0, 72)
     .map(([id]) => id);
-  if (backgroundRgb) ids.unshift(near(backgroundRgb)[0]);
   ids = [...new Set(ids)];
   return ids.map(id => p.find(v => v[0][0] === id)).filter(Boolean);
-}
-
-function buildConversionMasks(pixels) {
-  const total = W * H;
-  const bg = detectUniformBackground(pixels);
-  const keepMask = Array(total).fill(true);
-  const backgroundMask = Array(total).fill(false);
-  if (!bg) return { keepMask, backgroundMask, backgroundRgb: null };
-
-  const foreground = pixels.map(px => rgbDistance(normalizeRgb(px), bg.rgb) > bg.threshold);
-  const foregroundMask = cleanForegroundMask(foreground);
-  const foregroundCount = foregroundMask.filter(Boolean).length;
-  if (!foregroundCount || foregroundCount > total * .92) return { keepMask, backgroundMask, backgroundRgb: null };
-
-  const ring = dilateMask(foregroundMask);
-  for (let i = 0; i < total; i++) {
-    keepMask[i] = ring[i];
-    backgroundMask[i] = ring[i] && !foregroundMask[i];
-  }
-  ensureConnected(keepMask, backgroundMask, foregroundMask);
-  return { keepMask, backgroundMask, backgroundRgb: bg.rgb };
 }
 
 function convert() {
@@ -389,15 +292,16 @@ function convert() {
   W = cap(+$('gridWidth').value, 16, 200);
   H = cap(+$('gridHeight').value, 16, 200);
   const pixels = readSourcePixels();
-  const { keepMask, backgroundMask, backgroundRgb } = buildConversionMasks(pixels);
   let colors = pixels.map(normalizeRgb);
-  if (backgroundRgb) colors = smoothColors(colors, keepMask, backgroundMask);
-  const keepSet = autoPaletteSet(colors, keepMask, backgroundMask, backgroundRgb);
+  const background = detectUniformBackground(pixels);
+  if (background) {
+    const foregroundMask = cleanForegroundMask(colors.map(px => rgbDistance(px, background.rgb) > background.threshold));
+    colors = smoothColors(colors, foregroundMask.map(value => !value));
+  }
+  const keepSet = autoPaletteSet(colors);
   beads = Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => {
     const i = y * W + x;
-    if (!keepMask[i]) return null;
-    const src = backgroundMask[i] && backgroundRgb ? backgroundRgb : colors[i];
-    return near(src, keepSet);
+    return near(colors[i], keepSet);
   }));
   resetHistory();
   $('emptyState').classList.add('hidden');
