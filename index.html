@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="使用 MARD 221 标准色号将图片转换为可导出的拼豆图纸。" />
+    <meta name="description" content="使用 MARD 221 或 291 标准色号将图片转换为可导出的拼豆图纸。" />
     <title>豆绘 · MARD 拼豆图纸</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -43,6 +43,10 @@
 
           <div class="panel palette-panel">
             <div class="panel-heading"><h2>MARD 标准色板</h2><span id="paletteCount">221 色</span></div>
+            <div class="palette-set-toggle" role="group" aria-label="色卡范围">
+              <button class="active" data-palette-size="221" aria-pressed="true">221 色</button>
+              <button data-palette-size="291" aria-pressed="false">291 色</button>
+            </div>
             <div class="palette" id="palette"></div>
           </div>
         </aside>

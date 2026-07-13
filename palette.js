@@ -1,5 +1,5 @@
-// MARD 221 reference palette. Screen colors are reference values; product codes are canonical.
-const paletteData = [
+// MARD 221/291 reference palettes. Screen colors are references; product codes are canonical.
+const mard221Palette = [
   ['A1', '#faf5cd'], ['A2', '#fcfed6'], ['A3', '#fcff92'], ['A4', '#f7ec5c'], ['A5', '#f0d83a'],
   ['A6', '#fda951'], ['A7', '#fa8c4f'], ['A8', '#fbda4d'], ['A9', '#f79d5f'], ['A10', '#f47e38'],
   ['A11', '#fedb99'], ['A12', '#fda276'], ['A13', '#fec667'], ['A14', '#f75842'], ['A15', '#fbf65e'],
@@ -46,3 +46,27 @@ const paletteData = [
   ['M6', '#b0aa86'], ['M7', '#b0a796'], ['M8', '#ae8082'], ['M9', '#a68862'], ['M10', '#c4b3bb'],
   ['M11', '#9d7693'], ['M12', '#644b51'], ['M13', '#c79266'], ['M14', '#c27563'], ['M15', '#747d7a'],
 ];
+
+const mard291Additions = [
+  ['P1', '#fcf7f8'], ['P2', '#b0a9ac'], ['P3', '#afdcab'], ['P4', '#fea49f'], ['P5', '#ee8c3e'],
+  ['P6', '#5fd0a7'], ['P7', '#eb9270'], ['P8', '#f0d958'], ['P9', '#d9d9d9'], ['P10', '#d9c7ea'],
+  ['P11', '#f3ecc9'], ['P12', '#e6eef2'], ['P13', '#aacbef'], ['P14', '#337680'], ['P15', '#668575'],
+  ['P16', '#febf45'], ['P17', '#fea324'], ['P18', '#feb89f'], ['P19', '#fffeec'], ['P20', '#febecf'],
+  ['P21', '#ecbebf'], ['P22', '#e4a89f'], ['P23', '#a56268'],
+  ['Q1', '#f2a5e8'], ['Q2', '#e9ec91'], ['Q3', '#ffff00'], ['Q4', '#ffebfa'], ['Q5', '#76cede'],
+  ['R1', '#d50d21'], ['R2', '#f92f83'], ['R3', '#fd8324'], ['R4', '#f8ec31'], ['R5', '#35c75b'],
+  ['R6', '#238891'], ['R7', '#19779d'], ['R8', '#1a60c3'], ['R9', '#9a56b4'], ['R10', '#ffdb4c'],
+  ['R11', '#ffebfa'], ['R12', '#d8d5ce'], ['R13', '#55514c'], ['R14', '#9fe4df'], ['R15', '#77cee9'],
+  ['R16', '#3ecfca'], ['R17', '#4a867a'], ['R18', '#7fcd9d'], ['R19', '#cde55d'], ['R20', '#e8c7b4'],
+  ['R21', '#ad6f3c'], ['R22', '#6c372f'], ['R23', '#feb872'], ['R24', '#f3c1c0'], ['R25', '#c9675e'],
+  ['R26', '#d293be'], ['R27', '#ea8cb1'], ['R28', '#9c87d6'],
+  ['T1', '#ffffff'],
+  ['Y1', '#fd6fb4'], ['Y2', '#feb481'], ['Y3', '#d7faa0'], ['Y4', '#8bdbfa'], ['Y5', '#e987ea'],
+  ['ZG1', '#daabb3'], ['ZG2', '#d6aa87'], ['ZG3', '#c1bd8d'], ['ZG4', '#96869f'],
+  ['ZG5', '#8490a6'], ['ZG6', '#94bfe2'], ['ZG7', '#e2a9d2'], ['ZG8', '#ab91c0'],
+];
+
+const MARD_PALETTES = Object.freeze({
+  221: mard221Palette,
+  291: [...mard221Palette, ...mard291Additions],
+});

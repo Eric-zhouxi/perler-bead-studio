@@ -1,4 +1,6 @@
-const codes = paletteData.map(([id]) => id);
+let paletteSize = 221;
+let paletteData = MARD_PALETTES[paletteSize];
+let codes = paletteData.map(([id]) => id);
 const $ = id => document.getElementById(id);
 const canvas = $('beadCanvas');
 const ctx = canvas.getContext('2d');
@@ -35,9 +37,18 @@ function rgbToLab([r, g, b]) {
 
 const labDistance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const luminance = rgb => rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
-const p = paletteData.map(item => [item, hexToRgb(item[1]), rgbToLab(hexToRgb(item[1]))]);
-const darkPalette = p.filter(([, , lab]) => lab[0] < 38);
-const paletteById = new Map(paletteData.map(item => [item[0], item]));
+let p = [];
+let darkPalette = [];
+let paletteById = new Map();
+
+function rebuildPaletteMatcher() {
+  codes = paletteData.map(([id]) => id);
+  p = paletteData.map(item => [item, hexToRgb(item[1]), rgbToLab(hexToRgb(item[1]))]);
+  darkPalette = p.filter(([, , lab]) => lab[0] < 38);
+  paletteById = new Map(paletteData.map(item => [item[0], item]));
+}
+
+rebuildPaletteMatcher();
 const nearLab = (lab, set = p) => set.reduce((best, item) => labDistance(lab, item[2]) < labDistance(lab, best[2]) ? item : best)[0];
 const near = (rgb, set = p) => nearLab(rgbToLab(rgb), set);
 
@@ -335,6 +346,29 @@ function palette() {
   });
 }
 
+function setPaletteSize(size) {
+  if (!MARD_PALETTES[size] || size === paletteSize) return;
+  paletteSize = size;
+  paletteData = MARD_PALETTES[size];
+  rebuildPaletteMatcher();
+  selected = paletteById.get(selected[0]) || paletteData[0];
+  $('paletteCount').textContent = `${size} 色`;
+  document.querySelectorAll('[data-palette-size]').forEach(button => {
+    const active = +button.dataset.paletteSize === size;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  palette();
+  if (source) {
+    convert();
+  } else if (beads.length) {
+    beads = beads.map(row => row.map(bead => bead ? paletteById.get(bead[0]) || near(hexToRgb(bead[1])) : null));
+    resetHistory();
+    render();
+  }
+  showToast(`已切换至 MARD ${size} 色卡`);
+}
+
 function resize() {
   clearTimeout(timer);
   timer = setTimeout(() => source ? convert() : blank(), 180);
@@ -349,7 +383,7 @@ function drawExportHeader(target, width, margin, headerH, list) {
   target.fillText($('projectTitle').textContent || '拼豆图纸', margin, margin * .75);
   target.font = '500 18px "DM Mono", "Noto Sans SC", monospace';
   target.fillStyle = '#76736d';
-  target.fillText(`${W} × ${H} 格 · ${new Set(list.map(x => x[0])).size} 色 · ${list.length} 颗`, margin, margin * .75 + 46);
+  target.fillText(`${W} × ${H} 格 · MARD ${paletteSize} · ${new Set(list.map(x => x[0])).size} 色 · ${list.length} 颗`, margin, margin * .75 + 46);
   target.textAlign = 'right';
   target.font = '700 18px "DM Mono", monospace';
   target.fillStyle = '#ff5a36';
@@ -369,7 +403,7 @@ function drawExportLegend(target, counts, x, y, width, itemW, itemH) {
   target.font = '800 22px "Noto Sans SC", sans-serif';
   target.textAlign = 'left';
   target.textBaseline = 'top';
-  target.fillText('用色清单', x, y);
+  target.fillText(`用色清单 · MARD ${paletteSize}`, x, y);
   target.font = '500 16px "DM Mono", monospace';
   counts.forEach(([id, count], i) => {
     const colCount = Math.max(1, Math.floor(width / itemW));
@@ -603,6 +637,7 @@ function activate(mode) {
 }
 
 document.querySelectorAll('.mode').forEach(b => b.onclick = () => activate(b.dataset.mode));
+document.querySelectorAll('[data-palette-size]').forEach(button => button.onclick = () => setPaletteSize(+button.dataset.paletteSize));
 $('startCreate').onclick = () => activate('create');
 document.head.insertAdjacentHTML('beforeend', '<style>.canvas-stage canvas{max-width:none!important;max-height:none!important;flex:none}.palette-entry{text-align:center;font:9px monospace;color:#666}.palette-entry .swatch{display:block}.legend-head{display:flex;justify-content:space-between;margin:24px 0 10px;font-size:12px}.legend-head span,.watermark{font:10px monospace;color:#8b877e}.legend-list{display:flex;flex-wrap:wrap;gap:8px}.legend-item{display:flex;align-items:center;gap:5px;border:1px solid #dedbd4;padding:5px 7px;font:10px monospace;background:#fff}.legend-item i{width:13px;height:13px;border-radius:50%;border:1px solid #0002}.legend-item small{color:#777}.watermark{text-align:right;letter-spacing:1px;margin:12px 0}</style>');
 setHistoryButtons();
