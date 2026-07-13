@@ -1,6 +1,4 @@
-const codes = [['A', 26], ['B', 32], ['C', 29], ['D', 26], ['E', 24], ['F', 25], ['G', 21], ['H', 23], ['M', 15]]
-  .flatMap(([letter, count]) => Array.from({ length: count }, (_, i) => `${letter}${i + 1}`));
-const paletteData = Array.from({ length: 221 }, (_, i) => [codes[i], `hsl(${i * 47 % 360} ${35 + i % 5 * 14}% ${18 + Math.floor(i / 5) % 9 * 9}%)`]);
+const codes = paletteData.map(([id]) => id);
 const $ = id => document.getElementById(id);
 const canvas = $('beadCanvas');
 const ctx = canvas.getContext('2d');
@@ -11,41 +9,51 @@ let W = 64, H = 64, beads = [], selected = paletteData[0], zoom = 1, source, gri
 const cap = (v, a, b) => Math.max(a, Math.min(b, v));
 const cloneBeads = value => value.map(row => row.slice());
 const usedBeads = () => beads.flat().filter(Boolean);
-const rgbDistance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-const colorKey = c => c.map(v => cap(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('');
 
-const colour = c => {
-  const [h, s, l] = c.match(/\d+/g).map(Number);
-  const a = s / 100 * Math.min(l / 100, 1 - l / 100);
-  const f = n => {
-    const k = (n + h / 30) % 12;
-    return Math.round(255 * (l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
-  };
-  return [f(0), f(8), f(4)];
+const hexToRgb = hex => {
+  const value = parseInt(hex.slice(1), 16);
+  return [value >> 16, value >> 8 & 255, value & 255];
 };
-const p = paletteData.map(a => [a, colour(a[1])]);
-const dis = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
-const near = (a, set = p) => set.reduce((v, x) => dis(a, x[1]) < dis(a, v[1]) ? x : v)[0];
+
+function rgbToLab([r, g, b]) {
+  const linear = value => {
+    const channel = value / 255;
+    return channel > .04045 ? ((channel + .055) / 1.055) ** 2.4 : channel / 12.92;
+  };
+  r = linear(r);
+  g = linear(g);
+  b = linear(b);
+  const x = (r * .4124 + g * .3576 + b * .1805) / .95047;
+  const y = (r * .2126 + g * .7152 + b * .0722);
+  const z = (r * .0193 + g * .1192 + b * .9505) / 1.08883;
+  const pivot = value => value > .008856 ? Math.cbrt(value) : 7.787 * value + 16 / 116;
+  const fx = pivot(x);
+  const fy = pivot(y);
+  const fz = pivot(z);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+const labDistance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const luminance = rgb => rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
+const p = paletteData.map(item => [item, hexToRgb(item[1]), rgbToLab(hexToRgb(item[1]))]);
+const darkPalette = p.filter(([, , lab]) => lab[0] < 38);
+const paletteById = new Map(paletteData.map(item => [item[0], item]));
+const nearLab = (lab, set = p) => set.reduce((best, item) => labDistance(lab, item[2]) < labDistance(lab, best[2]) ? item : best)[0];
+const near = (rgb, set = p) => nearLab(rgbToLab(rgb), set);
 
 function normalizeRgb(rgb) {
   const [r, g, b] = rgb;
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const spread = max - min;
-  const luminance = r * .299 + g * .587 + b * .114;
-  if (max < 56) return [0, 0, 0];
-  if (min > 238 && spread < 22) return [255, 255, 255];
-  if (spread < 18 || (max < 100 && spread < 38)) {
-    const gray = cap(Math.round(luminance / 16) * 16, 0, 255);
+  const lightness = luminance(rgb);
+  if (max < 28) return [0, 0, 0];
+  if (min > 248 && spread < 8) return [255, 255, 255];
+  if (spread < 8) {
+    const gray = Math.round(lightness);
     return [gray, gray, gray];
   }
-  const step = max < 92 ? 16 : 12;
-  return [r, g, b].map(v => cap(Math.round(v / step) * step, 0, 255));
-}
-
-function averageColor(list) {
-  const sum = list.reduce((acc, c) => [acc[0] + c[0], acc[1] + c[1], acc[2] + c[2]], [0, 0, 0]);
-  return sum.map(v => v / Math.max(1, list.length));
+  return [r, g, b];
 }
 
 function colorCounts(list = usedBeads()) {
@@ -55,7 +63,7 @@ function colorCounts(list = usedBeads()) {
 }
 
 function textColor(fill) {
-  const q = colour(fill);
+  const q = hexToRgb(fill);
   return (q[0] * 299 + q[1] * 587 + q[2] * 114) > 145000 ? '#20201e' : '#fff';
 }
 
@@ -188,65 +196,79 @@ function readSourcePixels() {
   t.width = W;
   t.height = H;
   const x = t.getContext('2d');
-  x.fillStyle = '#fff';
-  x.fillRect(0, 0, W, H);
   const s = Math.min(W / source.naturalWidth, H / source.naturalHeight);
-  const w = source.naturalWidth * s;
-  const h = source.naturalHeight * s;
+  const w = Math.max(1, Math.round(source.naturalWidth * s));
+  const h = Math.max(1, Math.round(source.naturalHeight * s));
+  const offsetX = Math.floor((W - w) / 2);
+  const offsetY = Math.floor((H - h) / 2);
   x.imageSmoothingEnabled = true;
   x.imageSmoothingQuality = 'high';
-  x.drawImage(source, (W - w) / 2, (H - h) / 2, w, h);
+  x.drawImage(source, offsetX, offsetY, w, h);
   const d = x.getImageData(0, 0, W, H).data;
   const pixels = [];
-  for (let i = 0; i < d.length; i += 4) pixels.push([d[i], d[i + 1], d[i + 2]]);
-  return pixels;
+  const activeMask = [];
+  for (let i = 0; i < d.length; i += 4) {
+    pixels.push([d[i], d[i + 1], d[i + 2]]);
+    activeMask.push(d[i + 3] > 24);
+  }
+  return { pixels, activeMask };
 }
 
-function detectUniformBackground(pixels) {
-  const border = [];
-  for (let x = 0; x < W; x++) {
-    border.push(pixels[x], pixels[(H - 1) * W + x]);
-  }
-  for (let y = 1; y < H - 1; y++) {
-    border.push(pixels[y * W], pixels[y * W + W - 1]);
-  }
-  const avg = averageColor(border);
-  const distances = border.map(c => rgbDistance(c, avg));
-  const closeRatio = distances.filter(v => v < 34).length / Math.max(1, distances.length);
-  const meanDistance = distances.reduce((a, b) => a + b, 0) / Math.max(1, distances.length);
-  if (closeRatio < .86 || meanDistance > 24) return null;
-  return {
-    rgb: normalizeRgb(avg),
-    threshold: cap(Math.round(meanDistance * 1.8 + 34), 38, 72),
-  };
-}
-
-function cleanForegroundMask(mask) {
-  const out = mask.slice();
-  const at = (x, y) => x >= 0 && y >= 0 && x < W && y < H && mask[y * W + x];
+function detectLineMask(colors, activeMask) {
+  const levels = colors.filter((_, i) => activeMask[i]).map(luminance).sort((a, b) => a - b);
+  const lowerLevel = levels[Math.floor(levels.length * .18)] || 0;
+  const darkThreshold = cap(lowerLevel + 18, 52, 112);
+  const mask = Array(colors.length).fill(false);
+  const at = (x, y) => x >= 0 && y >= 0 && x < W && y < H && activeMask[y * W + x];
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      let neighbors = 0;
+      const i = y * W + x;
+      if (!activeMask[i]) continue;
+      const current = luminance(colors[i]);
+      const currentLab = rgbToLab(colors[i]);
+      const chroma = Math.hypot(currentLab[1], currentLab[2]);
+      let brightestNeighbor = current;
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
-          if ((dx || dy) && at(x + dx, y + dy)) neighbors++;
+          if ((!dx && !dy) || !at(x + dx, y + dy)) continue;
+          brightestNeighbor = Math.max(brightestNeighbor, luminance(colors[(y + dy) * W + x + dx]));
         }
       }
-      const i = y * W + x;
-      if (mask[i] && neighbors === 0) out[i] = false;
-      if (!mask[i] && neighbors >= 6) out[i] = true;
+      const neutralDark = current < 72 && chroma < 18;
+      const contrastingEdge = current < darkThreshold && brightestNeighbor - current > 24;
+      mask[i] = neutralDark || contrastingEdge;
     }
   }
-  return out;
-}
-
-function smoothColors(colors, backgroundMask) {
-  const out = colors.map(c => c.slice());
-  const paletteByKey = new Map(colors.map(c => [colorKey(c), c]));
+  const closed = mask.slice();
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
-      if (backgroundMask[i]) continue;
+      if (!activeMask[i] || mask[i]) continue;
+      const horizontal = x > 0 && x < W - 1 && mask[i - 1] && mask[i + 1];
+      const vertical = y > 0 && y < H - 1 && mask[i - W] && mask[i + W];
+      if (horizontal || vertical) closed[i] = true;
+    }
+  }
+  return closed;
+}
+
+function dominantLineColor(colors, lineMask) {
+  const counts = new Map();
+  colors.forEach((rgb, i) => {
+    if (!lineMask[i]) return;
+    const item = luminance(rgb) < 30 ? paletteById.get('H7') : near(rgb, darkPalette);
+    counts.set(item[0], (counts.get(item[0]) || 0) + 1);
+  });
+  const id = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
+  return id ? paletteById.get(id) : paletteById.get('H7');
+}
+
+function smoothBeadRegions(converted, activeMask, lineMask) {
+  const out = converted.slice();
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (!activeMask[i] || lineMask[i]) continue;
       const counts = new Map();
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
@@ -254,55 +276,29 @@ function smoothColors(colors, backgroundMask) {
           const nx = x + dx;
           const ny = y + dy;
           const ni = ny * W + nx;
-          if (nx < 0 || ny < 0 || nx >= W || ny >= H || backgroundMask[ni]) continue;
-          const key = colorKey(colors[ni]);
-          counts.set(key, (counts.get(key) || 0) + 1);
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H || !activeMask[ni] || lineMask[ni]) continue;
+          const id = converted[ni]?.[0];
+          if (id) counts.set(id, (counts.get(id) || 0) + 1);
         }
       }
       const best = [...counts].sort((a, b) => b[1] - a[1])[0];
-      if (!best || best[0] === colorKey(colors[i])) continue;
-      const neighborColor = paletteByKey.get(best[0]);
-      if (best[1] >= 5 || (best[1] >= 2 && rgbDistance(colors[i], neighborColor) > 48)) {
-        out[i] = neighborColor.slice();
-      }
+      if (best && best[1] >= 5 && best[0] !== converted[i]?.[0]) out[i] = paletteById.get(best[0]);
     }
   }
   return out;
-}
-
-function autoPaletteSet(colors) {
-  const counts = new Map();
-  colors.forEach(rgb => {
-    const item = near(rgb);
-    counts.set(item[0], (counts.get(item[0]) || 0) + 1);
-  });
-  const total = [...counts.values()].reduce((a, b) => a + b, 0);
-  const minCount = Math.max(2, Math.ceil(total * .0025));
-  let ids = [...counts]
-    .sort((a, b) => b[1] - a[1])
-    .filter(([, count], i) => count >= minCount || i < 8)
-    .slice(0, 72)
-    .map(([id]) => id);
-  ids = [...new Set(ids)];
-  return ids.map(id => p.find(v => v[0][0] === id)).filter(Boolean);
 }
 
 function convert() {
   if (!source) return;
   W = cap(+$('gridWidth').value, 16, 200);
   H = cap(+$('gridHeight').value, 16, 200);
-  const pixels = readSourcePixels();
-  let colors = pixels.map(normalizeRgb);
-  const background = detectUniformBackground(pixels);
-  if (background) {
-    const foregroundMask = cleanForegroundMask(colors.map(px => rgbDistance(px, background.rgb) > background.threshold));
-    colors = smoothColors(colors, foregroundMask.map(value => !value));
-  }
-  const keepSet = autoPaletteSet(colors);
-  beads = Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => {
-    const i = y * W + x;
-    return near(colors[i], keepSet);
-  }));
+  const { pixels, activeMask } = readSourcePixels();
+  const colors = pixels.map(normalizeRgb);
+  const lineMask = detectLineMask(colors, activeMask);
+  const lineColor = dominantLineColor(colors, lineMask);
+  const converted = colors.map((rgb, i) => !activeMask[i] ? null : lineMask[i] ? lineColor : near(rgb));
+  const smoothed = smoothBeadRegions(converted, activeMask, lineMask);
+  beads = Array.from({ length: H }, (_, y) => smoothed.slice(y * W, (y + 1) * W));
   resetHistory();
   $('emptyState').classList.add('hidden');
   $('projectTitle').textContent = '图片转拼豆图纸';
