@@ -90,6 +90,38 @@
   font-size: 11px;
 }
 
+.tool-buttons .edit-toggle {
+  width: auto;
+  min-width: 96px;
+  padding: 0 10px;
+  gap: 6px;
+  border-color: var(--orange);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tool-buttons .edit-toggle.hidden {
+  display: none;
+}
+
+.tool-buttons .edit-toggle.editing {
+  border-color: var(--line);
+  background: var(--paper);
+  color: var(--muted);
+}
+
+.canvas-stage canvas.edit-locked {
+  cursor: default;
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  border-color: var(--line);
+  background: var(--paper);
+  color: #c3beb4;
+}
+
 .password-change {
   margin-top: 24px;
   padding-top: 18px;
@@ -185,5 +217,16 @@
     overflow: auto;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+  }
+
+  .canvas-toolbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .canvas-toolbar .tool-buttons {
+    width: 100%;
+    justify-content: flex-end;
   }
 }

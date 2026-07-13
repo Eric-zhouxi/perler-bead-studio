@@ -7,7 +7,7 @@ const canvas = $('beadCanvas');
 const ctx = canvas.getContext('2d');
 const WATERMARK = 'ERIC_ZHOU · PERLER STUDIO';
 const BRAND = 'ERIC_ZHOU · 豆绘';
-let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, history = [], redoHistory = [], timer;
+let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, history = [], redoHistory = [], timer, editLocked = false;
 
 const cap = (v, a, b) => Math.max(a, Math.min(b, v));
 const cloneBeads = value => value.map(row => row.slice());
@@ -82,8 +82,22 @@ function textColor(fill) {
 function setHistoryButtons() {
   const undo = $('undoBtn');
   const redo = $('redoBtn');
-  if (undo) undo.disabled = history.length === 0;
-  if (redo) redo.disabled = redoHistory.length === 0;
+  if (undo) undo.disabled = editLocked || history.length === 0;
+  if (redo) redo.disabled = editLocked || redoHistory.length === 0;
+}
+
+function setEditLocked(locked, showButton = false) {
+  editLocked = locked;
+  const button = $('editBtn');
+  button.classList.toggle('hidden', !showButton);
+  button.classList.toggle('editing', showButton && !locked);
+  button.disabled = showButton && !locked;
+  button.querySelector('span').textContent = locked ? '开始编辑' : '编辑中';
+  button.setAttribute('aria-label', locked ? '开始编辑图纸' : '图纸正在编辑');
+  button.setAttribute('aria-pressed', String(showButton && !locked));
+  $('clearBtn').disabled = locked;
+  canvas.classList.toggle('edit-locked', locked);
+  setHistoryButtons();
 }
 
 function resetHistory() {
@@ -199,6 +213,7 @@ function blank(w = +$('gridWidth').value, h = +$('gridHeight').value) {
   W = cap(w, 16, 200);
   H = cap(h, 16, 200);
   beads = Array.from({ length: H }, () => Array(W).fill(null));
+  setEditLocked(false);
   resetHistory();
   render();
 }
@@ -311,6 +326,7 @@ function convert() {
   const converted = colors.map((rgb, i) => !activeMask[i] ? null : lineMask[i] ? lineColor : near(rgb));
   const smoothed = smoothBeadRegions(converted, activeMask, lineMask);
   beads = Array.from({ length: H }, (_, y) => smoothed.slice(y * W, (y + 1) * W));
+  setEditLocked(true, true);
   resetHistory();
   $('emptyState').classList.add('hidden');
   $('projectTitle').textContent = '图片转拼豆图纸';
@@ -566,6 +582,10 @@ async function exportImage() {
 }
 
 function clearCanvas() {
+  if (editLocked) {
+    showToast('请先点击“开始编辑”');
+    return;
+  }
   if (!beads.length) {
     showToast('当前没有图纸');
     return;
@@ -576,12 +596,12 @@ function clearCanvas() {
 }
 
 canvas.onpointerdown = e => {
-  if (!beads.length) return;
+  if (!beads.length || editLocked) return;
   canvas.setPointerCapture(e.pointerId);
   pushHistory();
   draw(e);
 };
-canvas.onpointermove = e => e.buttons && draw(e);
+canvas.onpointermove = e => e.buttons && !editLocked && draw(e);
 document.querySelectorAll('[data-size]').forEach(b => b.onclick = () => {
   const n = +b.dataset.size;
   $('gridWidth').value = $('gridHeight').value = n;
@@ -624,18 +644,23 @@ $('gridBtn').onclick = () => {
   render();
 };
 $('undoBtn').onclick = () => {
-  if (!history.length) return;
+  if (editLocked || !history.length) return;
   redoHistory.push(cloneBeads(beads));
   beads = history.pop();
   render();
 };
 $('redoBtn').onclick = () => {
-  if (!redoHistory.length) return;
+  if (editLocked || !redoHistory.length) return;
   history.push(cloneBeads(beads));
   beads = redoHistory.pop();
   render();
 };
 $('clearBtn').onclick = clearCanvas;
+$('editBtn').onclick = () => {
+  if (!editLocked) return;
+  setEditLocked(false, true);
+  showToast('已开启图纸编辑');
+};
 $('saveBtn').onclick = exportImage;
 
 function activate(mode) {
@@ -687,6 +712,7 @@ function loadPattern(snapshot) {
     return id ? paletteById.get(id) || near(hexToRgb(MARD_PALETTES[291].find(item => item[0] === id)?.[1] || '#ffffff')) : null;
   }));
   resetHistory();
+  setEditLocked(false);
   $('projectTitle').textContent = snapshot.title || '历史图纸';
   $('emptyState').classList.add('hidden');
   activate('create');
