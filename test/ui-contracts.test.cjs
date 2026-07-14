@@ -15,12 +15,11 @@ test('conversion strategies load before the app and expose exactly three version
   assert.equal(new Set(ids).size, ids.length, 'HTML ids must remain unique');
 });
 
-test('version controls retain hidden, active, locked, and mobile layout rules', () => {
+test('version controls retain hidden, active, and mobile layout rules', () => {
   const style = fs.readFileSync('./style.css', 'utf8');
   const auth = fs.readFileSync('./auth.css', 'utf8');
   assert.match(style, /\.variant-switcher\.hidden\{display:none\}/);
   assert.match(style, /\.variant-switcher button\.active\{/);
-  assert.match(style, /\.variant-switcher\.locked button:not\(\.active\)\{/);
   assert.match(style, /@media\(max-width:800px\)\{\.variant-switcher\{justify-content:flex-start\}\}/);
   assert.match(auth, /\.canvas-toolbar\s*\{[^}]*flex-wrap:\s*wrap;/s);
   assert.match(auth, /\.canvas-toolbar \.tool-buttons\s*\{[^}]*width:\s*100%;/s);

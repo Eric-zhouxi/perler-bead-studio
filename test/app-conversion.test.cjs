@@ -164,14 +164,13 @@ function loadStudio(pixelData) {
     ;globalThis.__studioTest = {
       prepareSource() { source = { naturalWidth: 50, naturalHeight: 50 }; },
       convert,
+      editCell(x, y, code) { beads[y][x] = paletteData.find(item => item[0] === code); },
       selectPatternVariant,
-      lockPatternVariantSelection,
       state() {
         const usage = colorCounts();
         return {
           variantCount: patternVariants.length,
           selectedPatternVariant,
-          variantSelectionLocked,
           usage,
           singletonColors: usage.filter(([, count]) => count === 1).length,
           beads: beads.map(row => row.map(entry => entry?.[0] || null)),
@@ -206,10 +205,15 @@ test('the real app generates three selectable conversion variants', () => {
   assert.equal(deep.beads[15][35], 'D10');
   assert.equal(deep.beads[35][35], 'C12');
 
-  studio.api.lockPatternVariantSelection();
+  studio.elements.get('editBtn').click();
+  studio.api.editCell(0, 0, 'A1');
+  studio.elements.get('editBtn').click();
+  assert.ok(studio.variantButtons.every(button => !button.disabled));
+
   studio.api.selectPatternVariant(0, false);
-  const locked = studio.api.state();
-  assert.equal(locked.selectedPatternVariant, 2);
-  assert.equal(locked.variantSelectionLocked, true);
-  assert.ok(studio.variantButtons.every(button => button.disabled));
+  assert.equal(studio.api.state().selectedPatternVariant, 0);
+  studio.api.selectPatternVariant(2, false);
+  const restoredEdit = studio.api.state();
+  assert.equal(restoredEdit.selectedPatternVariant, 2);
+  assert.equal(restoredEdit.beads[0][0], 'A1');
 });

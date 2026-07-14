@@ -9,7 +9,7 @@ const WATERMARK = 'ERIC_ZHOU · PERLER STUDIO';
 const BRAND = 'ERIC_ZHOU · 豆绘';
 let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, showColorNumbers = true, history = [], redoHistory = [], timer, editLocked = false;
 let renderCell = 16, renderGutter = 0;
-let patternVariants = [], selectedPatternVariant = 0, variantSelectionLocked = false, deepColorMatcher;
+let patternVariants = [], selectedPatternVariant = 0, deepColorMatcher;
 const VARIANT_LABELS = ['原始识别', '净色优化', '深色增强'];
 
 const cap = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -121,12 +121,12 @@ function updateVariantSwitcher() {
   const switcher = $('variantSwitcher');
   const available = patternVariants.length === VARIANT_LABELS.length;
   switcher.classList.toggle('hidden', !available);
-  switcher.classList.toggle('locked', available && variantSelectionLocked);
+  switcher.classList.remove('locked');
   document.querySelectorAll('[data-pattern-variant]').forEach(button => {
     const index = +button.dataset.patternVariant;
     const active = available && index === selectedPatternVariant;
     button.classList.toggle('active', active);
-    button.disabled = !available || variantSelectionLocked;
+    button.disabled = !available;
     button.setAttribute('aria-pressed', String(active));
   });
 }
@@ -134,33 +134,30 @@ function updateVariantSwitcher() {
 function clearPatternVariants() {
   patternVariants = [];
   selectedPatternVariant = 0;
-  variantSelectionLocked = false;
   updateVariantSwitcher();
 }
 
 function setPatternVariants(variants) {
   patternVariants = variants.map(cloneBeads);
   selectedPatternVariant = 0;
-  variantSelectionLocked = false;
   beads = cloneBeads(patternVariants[0]);
   updateVariantSwitcher();
 }
 
+function saveSelectedPatternVariant() {
+  if (patternVariants.length !== VARIANT_LABELS.length || !patternVariants[selectedPatternVariant]) return;
+  patternVariants[selectedPatternVariant] = cloneBeads(beads);
+}
+
 function selectPatternVariant(index, notify = true) {
-  if (variantSelectionLocked || !patternVariants[index] || index === selectedPatternVariant) return;
+  if (!patternVariants[index] || index === selectedPatternVariant) return;
+  saveSelectedPatternVariant();
   selectedPatternVariant = index;
   beads = cloneBeads(patternVariants[index]);
   resetHistory();
   updateVariantSwitcher();
   render();
   if (notify) showToast(`已切换至版本 ${index + 1} · ${VARIANT_LABELS[index]}`);
-}
-
-function lockPatternVariantSelection() {
-  if (patternVariants.length !== VARIANT_LABELS.length || variantSelectionLocked) return;
-  variantSelectionLocked = true;
-  patternVariants[selectedPatternVariant] = cloneBeads(beads);
-  updateVariantSwitcher();
 }
 
 function pushHistory() {
@@ -864,7 +861,7 @@ $('redoBtn').onclick = () => {
 $('clearBtn').onclick = clearCanvas;
 $('editBtn').onclick = () => {
   const nextLocked = !editLocked;
-  if (!nextLocked) lockPatternVariantSelection();
+  saveSelectedPatternVariant();
   setEditLocked(nextLocked, true);
   showToast(nextLocked ? '已锁定图纸' : '已开启图纸编辑');
 };
