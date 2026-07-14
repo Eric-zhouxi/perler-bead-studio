@@ -9,6 +9,8 @@ const WATERMARK = 'ERIC_ZHOU · PERLER STUDIO';
 const BRAND = 'ERIC_ZHOU · 豆绘';
 let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, showColorNumbers = true, history = [], redoHistory = [], timer, editLocked = false;
 let renderCell = 16, renderGutter = 0;
+let patternVariants = [], selectedPatternVariant = 0, variantSelectionLocked = false, deepColorMatcher;
+const VARIANT_LABELS = ['原始识别', '净色优化', '深色增强'];
 
 const cap = (v, a, b) => Math.max(a, Math.min(b, v));
 const cloneBeads = value => value.map(row => row.slice());
@@ -48,6 +50,7 @@ function rebuildPaletteMatcher() {
   p = paletteData.map(item => [item, hexToRgb(item[1]), rgbToLab(hexToRgb(item[1]))]);
   darkPalette = p.filter(([, , lab]) => lab[0] < 38);
   paletteById = new Map(paletteData.map(item => [item[0], item]));
+  deepColorMatcher = DouhuiConversionStrategies.createDeepColorMatcher(paletteData);
 }
 
 rebuildPaletteMatcher();
@@ -112,6 +115,52 @@ function resetHistory() {
   history = [];
   redoHistory = [];
   setHistoryButtons();
+}
+
+function updateVariantSwitcher() {
+  const switcher = $('variantSwitcher');
+  const available = patternVariants.length === VARIANT_LABELS.length;
+  switcher.classList.toggle('hidden', !available);
+  switcher.classList.toggle('locked', available && variantSelectionLocked);
+  document.querySelectorAll('[data-pattern-variant]').forEach(button => {
+    const index = +button.dataset.patternVariant;
+    const active = available && index === selectedPatternVariant;
+    button.classList.toggle('active', active);
+    button.disabled = !available || variantSelectionLocked;
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function clearPatternVariants() {
+  patternVariants = [];
+  selectedPatternVariant = 0;
+  variantSelectionLocked = false;
+  updateVariantSwitcher();
+}
+
+function setPatternVariants(variants) {
+  patternVariants = variants.map(cloneBeads);
+  selectedPatternVariant = 0;
+  variantSelectionLocked = false;
+  beads = cloneBeads(patternVariants[0]);
+  updateVariantSwitcher();
+}
+
+function selectPatternVariant(index, notify = true) {
+  if (variantSelectionLocked || !patternVariants[index] || index === selectedPatternVariant) return;
+  selectedPatternVariant = index;
+  beads = cloneBeads(patternVariants[index]);
+  resetHistory();
+  updateVariantSwitcher();
+  render();
+  if (notify) showToast(`已切换至版本 ${index + 1} · ${VARIANT_LABELS[index]}`);
+}
+
+function lockPatternVariantSelection() {
+  if (patternVariants.length !== VARIANT_LABELS.length || variantSelectionLocked) return;
+  variantSelectionLocked = true;
+  patternVariants[selectedPatternVariant] = cloneBeads(beads);
+  updateVariantSwitcher();
 }
 
 function pushHistory() {
@@ -303,6 +352,7 @@ function legend(list) {
 function blank(w = +$('gridWidth').value, h = +$('gridHeight').value) {
   W = cap(w, 16, 200);
   H = cap(h, 16, 200);
+  clearPatternVariants();
   beads = Array.from({ length: H }, () => Array(W).fill(null));
   setEditLocked(false);
   resetHistory();
@@ -370,6 +420,44 @@ function detectLineMask(colors, activeMask) {
   return closed;
 }
 
+function detectDeepLineMask(colors, activeMask) {
+  const levels = colors.filter((_, i) => activeMask[i]).map(luminance).sort((a, b) => a - b);
+  const lowerLevel = levels[Math.floor(levels.length * .18)] || 0;
+  const darkThreshold = cap(lowerLevel + 12, 45, 96);
+  const mask = Array(colors.length).fill(false);
+  const at = (x, y) => x >= 0 && y >= 0 && x < W && y < H && activeMask[y * W + x];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (!activeMask[i]) continue;
+      const current = luminance(colors[i]);
+      const currentLab = rgbToLab(colors[i]);
+      const chroma = Math.hypot(currentLab[1], currentLab[2]);
+      let brightestNeighbor = current;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if ((!dx && !dy) || !at(x + dx, y + dy)) continue;
+          brightestNeighbor = Math.max(brightestNeighbor, luminance(colors[(y + dy) * W + x + dx]));
+        }
+      }
+      const neutralDark = current < 58 && chroma < 10;
+      const contrastingEdge = current < darkThreshold && brightestNeighbor - current > 32;
+      mask[i] = neutralDark || contrastingEdge;
+    }
+  }
+  const closed = mask.slice();
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (!activeMask[i] || mask[i]) continue;
+      const horizontal = x > 0 && x < W - 1 && mask[i - 1] && mask[i + 1];
+      const vertical = y > 0 && y < H - 1 && mask[i - W] && mask[i + W];
+      if (horizontal || vertical) closed[i] = true;
+    }
+  }
+  return closed;
+}
+
 function dominantLineColor(colors, lineMask) {
   const counts = new Map();
   colors.forEach((rgb, i) => {
@@ -416,7 +504,17 @@ function convert() {
   const lineColor = dominantLineColor(colors, lineMask);
   const converted = colors.map((rgb, i) => !activeMask[i] ? null : lineMask[i] ? lineColor : near(rgb));
   const smoothed = smoothBeadRegions(converted, activeMask, lineMask);
-  beads = Array.from({ length: H }, (_, y) => smoothed.slice(y * W, (y + 1) * W));
+  const strategyOptions = { width: W, height: H, activeMask, lineMask };
+  const cleaned = DouhuiConversionStrategies.cleanSpeckles(smoothed, strategyOptions);
+  const deepLineMask = detectDeepLineMask(colors, activeMask);
+  const deepLineColor = dominantLineColor(colors, deepLineMask);
+  const deepStrategyOptions = { width: W, height: H, activeMask, lineMask: deepLineMask };
+  const deepConverted = colors.map((rgb, i) => !activeMask[i] ? null : deepLineMask[i] ? deepLineColor : deepColorMatcher(rgb));
+  const deepSmoothed = smoothBeadRegions(deepConverted, activeMask, deepLineMask);
+  const deepCleaned = DouhuiConversionStrategies.cleanSpeckles(deepSmoothed, deepStrategyOptions);
+  const deepConsolidated = DouhuiConversionStrategies.consolidateDeepRegions(deepCleaned, deepStrategyOptions);
+  const toRows = flat => Array.from({ length: H }, (_, y) => flat.slice(y * W, (y + 1) * W));
+  setPatternVariants([toRows(smoothed), toRows(cleaned), toRows(deepConsolidated)]);
   setEditLocked(true, true);
   resetHistory();
   $('emptyState').classList.add('hidden');
@@ -478,7 +576,13 @@ function setPaletteSize(size, options = {}) {
   if (refresh && source) {
     convert();
   } else if (refresh && beads.length) {
-    beads = beads.map(row => row.map(bead => bead ? paletteById.get(bead[0]) || near(hexToRgb(bead[1])) : null));
+    const remap = gridData => gridData.map(row => row.map(bead => bead ? paletteById.get(bead[0]) || near(hexToRgb(bead[1])) : null));
+    if (patternVariants.length) {
+      patternVariants = patternVariants.map(remap);
+      beads = cloneBeads(patternVariants[selectedPatternVariant]);
+    } else {
+      beads = remap(beads);
+    }
     resetHistory();
     render();
   }
@@ -760,10 +864,14 @@ $('redoBtn').onclick = () => {
 $('clearBtn').onclick = clearCanvas;
 $('editBtn').onclick = () => {
   const nextLocked = !editLocked;
+  if (!nextLocked) lockPatternVariantSelection();
   setEditLocked(nextLocked, true);
   showToast(nextLocked ? '已锁定图纸' : '已开启图纸编辑');
 };
 $('saveBtn').onclick = exportImage;
+document.querySelectorAll('[data-pattern-variant]').forEach(button => {
+  button.onclick = () => selectPatternVariant(+button.dataset.patternVariant);
+});
 
 function activate(mode) {
   const creating = mode === 'create';
@@ -804,6 +912,7 @@ function snapshotPattern() {
 function loadPattern(snapshot) {
   if (!snapshot?.beads?.length) return;
   resetImportedImage();
+  clearPatternVariants();
   setPaletteSize(snapshot.paletteSize || 221, { refresh: false, notify: false });
   W = cap(+snapshot.width, 16, 200);
   H = cap(+snapshot.height, 16, 200);
@@ -843,4 +952,5 @@ document.querySelectorAll('[data-palette-size]').forEach(button => button.onclic
 $('startCreate').onclick = startFreshCreate;
 document.head.insertAdjacentHTML('beforeend', '<style>.canvas-stage canvas{max-width:none!important;max-height:none!important;flex:none}.palette-entry{text-align:center;font:9px monospace;color:#666}.palette-entry .swatch{display:block}.legend-head{display:flex;justify-content:space-between;margin:24px 0 10px;font-size:12px}.legend-head span,.watermark{font:10px monospace;color:#8b877e}.legend-list{display:flex;flex-wrap:wrap;gap:8px}.legend-item{display:flex;align-items:center;gap:5px;border:1px solid #dedbd4;padding:5px 7px;font:10px monospace;background:#fff}.legend-item i{width:13px;height:13px;border-radius:50%;border:1px solid #0002}.legend-item small{color:#777}.watermark{text-align:right;letter-spacing:1px;margin:12px 0}</style>');
 setHistoryButtons();
+updateVariantSwitcher();
 palette();

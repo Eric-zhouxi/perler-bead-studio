@@ -59,6 +59,7 @@
 
         <section class="studio">
           <div class="canvas-toolbar"><div><strong id="projectTitle">未命名图纸</strong><small id="gridInfo">50 × 50 格</small></div><div class="tool-buttons"><button class="edit-toggle hidden" id="editBtn" type="button" aria-label="开始编辑图纸"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>开始编辑</span></button><span class="edit-state hidden" id="editState">锁定状态</span><button id="undoBtn" aria-label="撤销" data-tooltip="撤销"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7H4v5"/><path d="M4 7l6 6"/><path d="M20 17a7 7 0 0 0-12-5"/></svg></button><button id="redoBtn" aria-label="重做" data-tooltip="向后一步" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7h5v5"/><path d="M20 7l-6 6"/><path d="M4 17a7 7 0 0 1 12-5"/></svg></button><button id="previewBtn" type="button" aria-label="预览图纸（隐藏色号）" aria-pressed="false" data-tooltip="预览（隐藏色号）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.1 12a10.8 10.8 0 0 1 19.8 0 10.8 10.8 0 0 1-19.8 0Z"/><circle cx="12" cy="12" r="3"/></svg></button><button id="gridBtn" class="active" aria-label="网格" data-tooltip="网格">▦</button><button id="zoomOut" aria-label="缩小" data-tooltip="缩小">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="放大" data-tooltip="放大">+</button></div></div>
+          <div class="variant-switcher hidden" id="variantSwitcher" role="group" aria-label="图纸版本"><span>版本</span><button type="button" class="active" data-pattern-variant="0" aria-label="版本 1：原始识别" aria-pressed="true" title="原始识别">1</button><button type="button" data-pattern-variant="1" aria-label="版本 2：净色优化" aria-pressed="false" title="净色优化">2</button><button type="button" data-pattern-variant="2" aria-label="版本 3：深色增强" aria-pressed="false" title="深色增强">3</button></div>
           <div class="canvas-stage" id="canvasStage"><canvas id="beadCanvas" width="640" height="640"></canvas><div class="empty-state" id="emptyState"><div class="spark">✦</div><h2>准备开始创作</h2><p>上传一张图片，或选择「自由创作」<br/>在画布上绘制你的第一颗拼豆。</p><button class="primary-button" id="startCreate">开始自由创作</button></div></div>
           <div class="canvas-footer"><span><i class="status-dot"></i><b id="usedColors">0</b> 种颜色已使用</span><span><b id="beadTotal">0</b> 颗拼豆</span></div>
         </section>
@@ -113,6 +114,7 @@
     </div>
 
     <script src="palette.js"></script>
+    <script src="conversion-strategies.js"></script>
     <script src="app.js"></script>
     <script src="api-config.js"></script>
     <script src="account.js"></script>
