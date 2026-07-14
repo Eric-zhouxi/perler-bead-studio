@@ -149,10 +149,12 @@ function patternMetrics(cell, options = {}) {
   const gutter = showCoordinates ? coordinateGutter(cell, highQualityText) : 0;
   return {
     gutter,
+    gridX: gutter,
+    gridY: gutter,
     gridWidth: W * cell,
     gridHeight: H * cell,
-    width: W * cell + gutter,
-    height: H * cell + gutter,
+    width: W * cell + gutter * 2,
+    height: H * cell + gutter * 2,
   };
 }
 
@@ -185,41 +187,47 @@ function drawGrid(target, cell) {
 }
 
 function drawCoordinates(target, cell, gutter, highQuality = false) {
-  const fontSize = Math.max(highQuality ? 16 : 5, Math.min(highQuality ? 22 : 10, Math.floor(cell * .72)));
-  const rotateColumns = cell < fontSize * 2.2;
+  const fontSize = Math.max(highQuality ? 16 : 4, Math.min(highQuality ? 22 : 10, Math.floor(cell * .72)));
+  const gridW = W * cell;
+  const gridH = H * cell;
+  const bottom = gutter + gridH;
+  const right = gutter + gridW;
   target.save();
   target.fillStyle = '#f5f3ee';
-  target.fillRect(0, 0, gutter + W * cell, gutter);
-  target.fillRect(0, 0, gutter, gutter + H * cell);
+  target.fillRect(0, 0, gutter * 2 + gridW, gutter);
+  target.fillRect(0, bottom, gutter * 2 + gridW, gutter);
+  target.fillRect(0, 0, gutter, gutter * 2 + gridH);
+  target.fillRect(right, 0, gutter, gutter * 2 + gridH);
   target.strokeStyle = '#c8c4ba';
   target.lineWidth = Math.max(1, Math.round(cell * .045));
   target.beginPath();
   target.moveTo(gutter, 0);
-  target.lineTo(gutter, gutter + H * cell);
+  target.lineTo(gutter, gutter * 2 + gridH);
+  target.moveTo(right, 0);
+  target.lineTo(right, gutter * 2 + gridH);
   target.moveTo(0, gutter);
-  target.lineTo(gutter + W * cell, gutter);
+  target.lineTo(gutter * 2 + gridW, gutter);
+  target.moveTo(0, bottom);
+  target.lineTo(gutter * 2 + gridW, bottom);
   target.stroke();
   target.fillStyle = '#5f5b54';
   target.font = `700 ${fontSize}px "DM Mono", Consolas, monospace`;
+  target.textAlign = 'center';
   target.textBaseline = 'middle';
   for (let x = 0; x < W; x++) {
     const label = String(x + 1);
     const cx = gutter + x * cell + cell / 2;
-    if (rotateColumns) {
-      target.save();
-      target.translate(cx, gutter - Math.max(5, fontSize * .65));
-      target.rotate(-Math.PI / 2);
-      target.textAlign = 'left';
-      target.fillText(label, 0, 0);
-      target.restore();
-    } else {
-      target.textAlign = 'center';
-      target.fillText(label, cx, gutter / 2);
-    }
+    target.fillText(label, cx, gutter / 2);
+    target.fillText(label, cx, bottom + gutter / 2);
   }
   target.textAlign = 'right';
   for (let y = 0; y < H; y++) {
-    target.fillText(String(y + 1), gutter - Math.max(5, cell * .32), gutter + y * cell + cell / 2);
+    const label = String(y + 1);
+    const cy = gutter + y * cell + cell / 2;
+    target.fillText(label, gutter - Math.max(5, cell * .32), cy);
+    target.textAlign = 'left';
+    target.fillText(label, right + Math.max(5, cell * .32), cy);
+    target.textAlign = 'right';
   }
   target.restore();
 }
