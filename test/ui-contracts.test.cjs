@@ -10,6 +10,7 @@ test('conversion strategies load before the app and expose exactly three version
   assert.match(html, /<canvas[^>]*id="ambientCanvas"[^>]*aria-hidden="true"/);
   assert.match(html, /id="ambientToggle"[^>]*aria-pressed="false"/);
   assert.ok(html.indexOf('conversion-strategies.js') < html.indexOf('app.js'));
+  assert.match(html, /app\.js\?v=variants-20260714/, 'the variant-state fix must bypass stale cached app scripts');
   assert.equal((html.match(/data-pattern-variant=/g) || []).length, 3);
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length, 'HTML ids must remain unique');
