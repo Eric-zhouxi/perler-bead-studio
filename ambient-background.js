@@ -15,6 +15,13 @@
   const TAP_RIPPLE_RADIUS = 440;
   const RIPPLE_LIFETIME = 2200;
   const TRAIL_LIFETIME = 2400;
+  const MAX_PIXEL_RATIO = 1.5;
+  const ACTIVE_FRAME_INTERVAL = 40;
+  const POINTER_IDLE_TIME = 180;
+  const FLOW_RIPPLE_INTERVAL = 140;
+  const TRAIL_INTERVAL = 90;
+  const MAX_RIPPLES = 4;
+  const MAX_TRAILS = 8;
 
   const cap = (value, min, max) => Math.max(min, Math.min(max, value));
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -154,6 +161,8 @@
       delete canvas.dataset.ambientReady;
       return null;
     }
+    const baseCanvas = document.createElement?.('canvas') || null;
+    const baseContext = baseCanvas?.getContext?.('2d', { alpha: true }) || null;
     const reducedMotion = host.matchMedia?.('(prefers-reduced-motion: reduce)');
     let width = 0;
     let height = 0;
@@ -168,14 +177,74 @@
     let running = true;
     const pointer = { x: 0, y: 0, vx: 0, vy: 0, lastAt: 0, active: false };
 
+    function renderGlyph(target, state) {
+      const color = COLORS[state.tone];
+      const alphaScale = state.tone === 'ink' ? 1 : state.tone === 'orange' ? .76 : .62;
+      target.fillStyle = `rgba(${color[0]},${color[1]},${color[2]},${state.alpha * alphaScale})`;
+      target.font = `500 ${Math.round(state.size)}px "DM Mono", "Noto Sans SC", monospace`;
+      target.fillText(state.character, state.x, state.y);
+    }
+
+    function drawBase(target) {
+      target.clearRect(0, 0, width, height);
+      target.textAlign = 'center';
+      target.textBaseline = 'middle';
+      target.font = '500 10px "DM Mono", "Noto Sans SC", monospace';
+      glyphs.forEach(glyph => {
+        const color = COLORS[glyph.tone];
+        const alphaScale = glyph.tone === 'ink' ? 1 : glyph.tone === 'orange' ? .76 : .62;
+        target.fillStyle = `rgba(${color[0]},${color[1]},${color[2]},${glyph.baseAlpha * alphaScale})`;
+        target.fillText(GLYPHS[glyph.glyphIndex], glyph.x, glyph.y);
+      });
+    }
+
+    function createActivityZones(now) {
+      const zones = [];
+      if (pointer.active) zones.push({ x: pointer.x, y: pointer.y, radius: POINTER_RADIUS + 18 });
+      ripples.forEach(item => {
+        const age = now - item.startedAt;
+        if (age < 0 || age >= RIPPLE_LIFETIME) return;
+        const progress = age / RIPPLE_LIFETIME;
+        const radius = progress * (item.kind === 'tap' ? TAP_RIPPLE_RADIUS : FLOW_RIPPLE_RADIUS);
+        zones.push({ x: item.x, y: item.y, radius: radius + (item.kind === 'tap' ? 105 : 72) });
+      });
+      trails.forEach(item => {
+        const age = now - item.startedAt;
+        if (age < 0 || age >= TRAIL_LIFETIME) return;
+        const progress = age / TRAIL_LIFETIME;
+        const friction = .0032;
+        const travelTime = (1 - Math.exp(-age * friction)) / friction;
+        zones.push({
+          x: item.x + item.vx * travelTime,
+          y: item.y + item.vy * travelTime,
+          radius: (56 + progress * 42) * 3,
+        });
+      });
+      return zones;
+    }
+
+    function isInsideActivityZone(glyph, zones) {
+      return zones.some(zone => {
+        const dx = glyph.x - zone.x;
+        const dy = glyph.y - zone.y;
+        return dx * dx + dy * dy <= zone.radius * zone.radius;
+      });
+    }
+
     function resize() {
       width = host.innerWidth;
       height = host.innerHeight;
-      const ratio = Math.min(host.devicePixelRatio || 1, 2);
+      const ratio = Math.min(host.devicePixelRatio || 1, MAX_PIXEL_RATIO);
       canvas.width = Math.round(width * ratio);
       canvas.height = Math.round(height * ratio);
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      glyphs = createGlyphField(width, height, width < 720 ? 36 : 30);
+      glyphs = createGlyphField(width, height, width < 720 ? 40 : 34);
+      if (baseCanvas && baseContext) {
+        baseCanvas.width = canvas.width;
+        baseCanvas.height = canvas.height;
+        baseContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+        drawBase(baseContext);
+      }
       draw(host.performance?.now?.() || Date.now());
     }
 
@@ -183,30 +252,47 @@
       context.clearRect(0, 0, width, height);
       context.textAlign = 'center';
       context.textBaseline = 'middle';
+      if (baseCanvas && baseContext) context.drawImage(baseCanvas, 0, 0, width, height);
+      else drawBase(context);
+      const zones = createActivityZones(now);
+      if (!zones.length) return;
       glyphs.forEach(glyph => {
+        if (!isInsideActivityZone(glyph, zones)) return;
         const state = calculateGlyphState(glyph, pointer, ripples, now, trails);
-        const color = COLORS[state.tone];
-        const alphaScale = state.tone === 'ink' ? 1 : state.tone === 'orange' ? .76 : .62;
-        context.fillStyle = `rgba(${color[0]},${color[1]},${color[2]},${state.alpha * alphaScale})`;
-        context.font = `500 ${state.size}px "DM Mono", "Noto Sans SC", monospace`;
-        context.fillText(state.character, state.x, state.y);
+        renderGlyph(context, state);
       });
     }
 
-    function animate(now) {
-      if (!running) return;
+    function requestAnimation() {
+      if (!running || reducedMotion?.matches || frame) return;
       frame = host.requestAnimationFrame(animate);
-      const frameInterval = pointer.active || ripples.length || trails.length ? 33 : 80;
-      if (now - lastFrame < frameInterval) return;
-      lastFrame = now;
+    }
+
+    function animate(now) {
+      frame = 0;
+      if (!running) return;
+      const hadActivity = pointer.active || ripples.length || trails.length;
+      if (pointer.active && now - pointer.lastAt >= POINTER_IDLE_TIME) pointer.active = false;
       ripples = ripples.filter(item => now - item.startedAt < RIPPLE_LIFETIME);
       trails = trails.filter(item => now - item.startedAt < TRAIL_LIFETIME);
+      const hasActivity = pointer.active || ripples.length || trails.length;
+      if (hadActivity && !hasActivity) {
+        lastFrame = now;
+        draw(now);
+        return;
+      }
+      if (now - lastFrame < ACTIVE_FRAME_INTERVAL) {
+        if (hasActivity) requestAnimation();
+        return;
+      }
+      lastFrame = now;
       draw(now);
+      if (hasActivity) requestAnimation();
     }
 
     function addRipple(x, y, strength, now, kind = 'flow') {
       ripples.push({ x, y, strength, startedAt: now, kind });
-      if (ripples.length > 8) ripples.shift();
+      if (ripples.length > MAX_RIPPLES) ripples.shift();
     }
 
     function addTapRipples(x, y, now) {
@@ -216,7 +302,7 @@
 
     function addTrail(x, y, vx, vy, strength, now) {
       trails.push({ x, y, vx, vy, strength, startedAt: now });
-      if (trails.length > 24) trails.shift();
+      if (trails.length > MAX_TRAILS) trails.shift();
     }
 
     function onPointerMove(event) {
@@ -234,7 +320,7 @@
           pointer.vx *= 1.1 / speed;
           pointer.vy *= 1.1 / speed;
         }
-        if (!reducedMotion?.matches && speed > .025 && now - lastTrail > 42) {
+        if (!reducedMotion?.matches && speed > .025 && now - lastTrail > TRAIL_INTERVAL) {
           addTrail(x, y, pointer.vx, pointer.vy, cap(.32 + speed * 1.16, .32, 1.08), now);
           lastTrail = now;
         }
@@ -246,11 +332,12 @@
       pointer.y = y;
       pointer.lastAt = now;
       pointer.active = true;
-      if (!reducedMotion?.matches && now - lastRipple > 95) {
+      if (!reducedMotion?.matches && now - lastRipple > FLOW_RIPPLE_INTERVAL) {
         addRipple(pointer.x, pointer.y, .28, now);
         lastRipple = now;
       }
       if (reducedMotion?.matches) draw(now);
+      else requestAnimation();
     }
 
     function activatePointer(x, y) {
@@ -262,6 +349,7 @@
       lastRipple = now;
       if (!reducedMotion?.matches) addTapRipples(pointer.x, pointer.y, now);
       else draw(now);
+      requestAnimation();
     }
 
     function onPointerDown(event) {
@@ -282,6 +370,7 @@
       }
       pointer.active = false;
       if (reducedMotion?.matches) draw(now);
+      else requestAnimation();
     }
 
     function onPointerLeave() {
@@ -305,20 +394,23 @@
       running = !document.hidden;
       if (running && !reducedMotion?.matches) {
         host.cancelAnimationFrame(frame);
-        frame = host.requestAnimationFrame(animate);
+        frame = 0;
+        requestAnimation();
       } else if (!running) {
         host.cancelAnimationFrame(frame);
+        frame = 0;
       }
     }
 
     function onMotionPreferenceChange() {
       host.cancelAnimationFrame(frame);
+      frame = 0;
       if (reducedMotion?.matches) {
         ripples = [];
         trails = [];
       }
       resize();
-      if (running && !reducedMotion?.matches) frame = host.requestAnimationFrame(animate);
+      if (running && !reducedMotion?.matches) requestAnimation();
     }
 
     const needsTouchFallback = !('PointerEvent' in host);
@@ -336,12 +428,12 @@
     document.addEventListener('visibilitychange', onVisibilityChange);
     reducedMotion?.addEventListener?.('change', onMotionPreferenceChange);
     resize();
-    if (!reducedMotion?.matches) frame = host.requestAnimationFrame(animate);
 
     return {
       destroy() {
         running = false;
         host.cancelAnimationFrame(frame);
+        frame = 0;
         host.removeEventListener('pointermove', onPointerMove);
         host.removeEventListener('pointerdown', onPointerDown);
         host.removeEventListener('pointerup', onPointerEnd);
@@ -363,6 +455,9 @@
   return {
     GLYPHS,
     FLOW_RIPPLE_RADIUS,
+    MAX_PIXEL_RATIO,
+    MAX_RIPPLES,
+    MAX_TRAILS,
     POINTER_RADIUS,
     RIPPLE_LIFETIME,
     TAP_RIPPLE_RADIUS,

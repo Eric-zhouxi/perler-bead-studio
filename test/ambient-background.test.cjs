@@ -11,6 +11,12 @@ test('glyph fields are deterministic and cover the viewport at a stable density'
   assert.ok(first.every(item => item.baseAlpha >= .012 && item.baseAlpha <= .03));
 });
 
+test('animation work is bounded for high-density displays and pointer effects', () => {
+  assert.equal(ambient.MAX_PIXEL_RATIO, 1.5);
+  assert.ok(ambient.MAX_RIPPLES <= 4);
+  assert.ok(ambient.MAX_TRAILS <= 8);
+});
+
 test('pointer reveal is strongest at the cursor and fades to zero outside its radius', () => {
   const pointer = { x: 100, y: 100, active: true };
   assert.equal(ambient.pointerInfluence({ x: 100, y: 100 }, pointer), 1);
@@ -132,9 +138,9 @@ test('reduced-motion initialization renders once, caps pixel density, and cleans
 
   const controller = ambient.init(host);
   assert.ok(controller);
-  assert.equal(canvas.width, 640);
-  assert.equal(canvas.height, 360);
-  assert.deepEqual(transforms[0], [2, 0, 0, 2, 0, 0]);
+  assert.equal(canvas.width, 480);
+  assert.equal(canvas.height, 270);
+  assert.deepEqual(transforms[0], [1.5, 0, 0, 1.5, 0, 0]);
   assert.ok(drawCalls.length > 0);
   assert.equal(canvas.dataset.ambientReady, 'true');
 
