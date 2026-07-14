@@ -1,0 +1,111 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const ambient = require('../ambient-background.js');
+
+test('glyph fields are deterministic and cover the viewport at a stable density', () => {
+  const first = ambient.createGlyphField(300, 180, 30, 42);
+  const second = ambient.createGlyphField(300, 180, 30, 42);
+  assert.deepEqual(first, second);
+  assert.equal(first.length, 77);
+  assert.ok(first.every(item => ambient.GLYPHS[item.glyphIndex]));
+  assert.ok(first.every(item => item.baseAlpha >= .012 && item.baseAlpha <= .03));
+});
+
+test('pointer reveal is strongest at the cursor and fades to zero outside its radius', () => {
+  const pointer = { x: 100, y: 100, active: true };
+  assert.equal(ambient.pointerInfluence({ x: 100, y: 100 }, pointer), 1);
+  assert.ok(ambient.pointerInfluence({ x: 160, y: 100 }, pointer) > 0);
+  assert.equal(ambient.pointerInfluence({ x: 400, y: 100 }, pointer), 0);
+  assert.equal(ambient.pointerInfluence({ x: 100, y: 100 }, { ...pointer, active: false }), 0);
+});
+
+test('ripple influence peaks around the expanding wavefront and expires cleanly', () => {
+  const ripple = { x: 0, y: 0, strength: 1, startedAt: 0 };
+  const halfway = ambient.RIPPLE_LIFETIME / 2;
+  assert.ok(ambient.rippleInfluence({ x: 180, y: 0 }, ripple, halfway) > 0);
+  assert.ok(Math.abs(ambient.rippleInfluence({ x: 0, y: 0 }, ripple, halfway)) < .001);
+  assert.equal(ambient.rippleInfluence({ x: 180, y: 0 }, ripple, ambient.RIPPLE_LIFETIME), 0);
+});
+
+test('glyph state becomes brighter and moves when the pointer and ripple are nearby', () => {
+  const glyph = ambient.createGlyphField(40, 40, 30, 7)[0];
+  const calm = ambient.calculateGlyphState(glyph, { active: false }, [], 500);
+  const active = ambient.calculateGlyphState(
+    glyph,
+    { x: glyph.x, y: glyph.y, active: true },
+    [{ x: glyph.x - 20, y: glyph.y, strength: 1, startedAt: 0 }],
+    500,
+  );
+  assert.ok(active.alpha > calm.alpha);
+  assert.ok(active.size > calm.size);
+  assert.ok(active.x !== calm.x || active.y !== calm.y);
+  assert.ok(ambient.GLYPHS.includes(active.character));
+});
+
+test('reduced-motion initialization renders once, caps pixel density, and cleans up', () => {
+  const listeners = new Map();
+  const documentListeners = new Map();
+  const mediaListeners = new Map();
+  const drawCalls = [];
+  const transforms = [];
+  const context = {
+    setTransform(...args) { transforms.push(args); },
+    clearRect() {},
+    fillText(...args) { drawCalls.push(args); },
+    set textAlign(value) { this._textAlign = value; },
+    set textBaseline(value) { this._textBaseline = value; },
+    set fillStyle(value) { this._fillStyle = value; },
+    set font(value) { this._font = value; },
+  };
+  const canvas = { dataset: {}, width: 0, height: 0, getContext: () => context };
+  const media = {
+    matches: true,
+    addEventListener(type, handler) { mediaListeners.set(type, handler); },
+    removeEventListener(type) { mediaListeners.delete(type); },
+  };
+  const document = {
+    hidden: false,
+    getElementById: id => id === 'ambientCanvas' ? canvas : null,
+    addEventListener(type, handler) { documentListeners.set(type, handler); },
+    removeEventListener(type) { documentListeners.delete(type); },
+  };
+  const host = {
+    document,
+    innerWidth: 320,
+    innerHeight: 180,
+    devicePixelRatio: 3,
+    performance: { now: () => 500 },
+    matchMedia: () => media,
+    requestAnimationFrame: () => 1,
+    cancelAnimationFrame() {},
+    setTimeout,
+    clearTimeout,
+    addEventListener(type, handler) { listeners.set(type, handler); },
+    removeEventListener(type) { listeners.delete(type); },
+  };
+
+  const controller = ambient.init(host);
+  assert.ok(controller);
+  assert.equal(canvas.width, 640);
+  assert.equal(canvas.height, 360);
+  assert.deepEqual(transforms[0], [2, 0, 0, 2, 0, 0]);
+  assert.ok(drawCalls.length > 0);
+  assert.equal(canvas.dataset.ambientReady, 'true');
+
+  const beforeMove = drawCalls.length;
+  listeners.get('pointermove')({ clientX: 80, clientY: 70 });
+  assert.ok(drawCalls.length > beforeMove);
+
+  controller.destroy();
+  assert.equal(canvas.dataset.ambientReady, undefined);
+  assert.equal(mediaListeners.size, 0);
+  assert.equal(documentListeners.size, 0);
+  assert.equal(listeners.size, 0);
+});
+
+test('initialization exits cleanly when a 2D canvas context is unavailable', () => {
+  const canvas = { dataset: {}, getContext: () => null };
+  const controller = ambient.init({ document: { getElementById: () => canvas } });
+  assert.equal(controller, null);
+  assert.equal(canvas.dataset.ambientReady, undefined);
+});

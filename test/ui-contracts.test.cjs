@@ -4,6 +4,9 @@ const fs = require('node:fs');
 
 test('conversion strategies load before the app and expose exactly three version controls', () => {
   const html = fs.readFileSync('./index.html', 'utf8');
+  assert.ok(html.indexOf('id="ambientCanvas"') < html.indexOf('class="app-shell"'));
+  assert.ok(html.indexOf('ambient-background.js') < html.indexOf('app.js'));
+  assert.match(html, /<canvas[^>]*id="ambientCanvas"[^>]*aria-hidden="true"/);
   assert.ok(html.indexOf('conversion-strategies.js') < html.indexOf('app.js'));
   assert.equal((html.match(/data-pattern-variant=/g) || []).length, 3);
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
@@ -19,4 +22,11 @@ test('version controls retain hidden, active, locked, and mobile layout rules', 
   assert.match(style, /@media\(max-width:800px\)\{\.variant-switcher\{justify-content:flex-start\}\}/);
   assert.match(auth, /\.canvas-toolbar\s*\{[^}]*flex-wrap:\s*wrap;/s);
   assert.match(auth, /\.canvas-toolbar \.tool-buttons\s*\{[^}]*width:\s*100%;/s);
+});
+
+test('ambient canvas remains behind the application and never captures interaction', () => {
+  const style = fs.readFileSync('./style.css', 'utf8');
+  assert.match(style, /body\{[^}]*isolation:isolate;/);
+  assert.match(style, /\.ambient-canvas\{[^}]*position:fixed;[^}]*z-index:0;[^}]*pointer-events:none(?:;|})/);
+  assert.match(style, /\.app-shell\{[^}]*position:relative;[^}]*z-index:1(?:;|})/);
 });
