@@ -6,10 +6,17 @@
     <meta name="description" content="使用 MARD 221 或 291 标准色号将图片转换为可导出的拼豆图纸。" />
     <title>豆绘 · MARD 拼豆图纸</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="ambient-background.css" />
     <link rel="stylesheet" href="auth.css" />
   </head>
   <body>
-    <canvas class="ambient-canvas" id="ambientCanvas" aria-hidden="true"></canvas>
+    <div class="ambient-field" id="ambientField" aria-hidden="true">
+      <div class="ambient-magnet" id="ambientMagnet">
+        <i class="ambient-bead bead-orange"></i><i class="ambient-bead bead-blue"></i>
+        <i class="ambient-bead bead-ink"></i><i class="ambient-bead bead-cream"></i>
+        <i class="ambient-bead bead-small"></i>
+      </div>
+    </div>
     <main class="app-shell">
       <header class="topbar">
         <a class="brand" href="#"><span class="brand-mark">◈</span>豆绘<span>PERLER STUDIO</span></a>
