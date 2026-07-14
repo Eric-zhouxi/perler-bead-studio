@@ -10,8 +10,11 @@
     orange: [255, 90, 54],
     blue: [62, 102, 238],
   };
+  const POINTER_RADIUS = 148;
+  const FLOW_RIPPLE_RADIUS = 280;
+  const TAP_RIPPLE_RADIUS = 440;
   const RIPPLE_LIFETIME = 2200;
-  const TRAIL_LIFETIME = 1800;
+  const TRAIL_LIFETIME = 2400;
 
   const cap = (value, min, max) => Math.max(min, Math.min(max, value));
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -44,7 +47,7 @@
     return glyphs;
   }
 
-  function pointerInfluence(point, pointer, radius = 190) {
+  function pointerInfluence(point, pointer, radius = POINTER_RADIUS) {
     if (!pointer?.active) return 0;
     const ratio = cap(1 - distance(point, pointer) / radius, 0, 1);
     return ratio * ratio * (3 - 2 * ratio);
@@ -54,11 +57,19 @@
     const age = now - ripple.startedAt;
     if (age < 0 || age >= RIPPLE_LIFETIME) return 0;
     const progress = age / RIPPLE_LIFETIME;
-    const radius = progress * 360;
-    const offset = distance(point, ripple) - radius;
-    const band = Math.exp(-(offset * offset) / (2 * 30 * 30));
-    const decay = (1 - progress) ** 2;
-    return Math.cos(offset * .15) * band * decay * ripple.strength;
+    const isTap = ripple.kind === 'tap';
+    const pointDistance = distance(point, ripple);
+    const radius = progress * (isTap ? TAP_RIPPLE_RADIUS : FLOW_RIPPLE_RADIUS);
+    const bandWidth = isTap ? 36 : 25;
+    const offset = pointDistance - radius;
+    const band = Math.exp(-(offset * offset) / (2 * bandWidth * bandWidth));
+    const decay = (1 - progress) ** (isTap ? 1.35 : 2.2);
+    const primary = Math.cos(offset * (isTap ? .11 : .15)) * band;
+    if (!isTap) return primary * decay * ripple.strength;
+
+    const echoOffset = pointDistance - radius * .72;
+    const echo = Math.exp(-(echoOffset * echoOffset) / (2 * 20 * 20)) * .34;
+    return (primary + echo) * decay * ripple.strength;
   }
 
   function trailInfluence(point, trail, now) {
@@ -72,9 +83,9 @@
     const dx = point.x - x;
     const dy = point.y - y;
     const pointDistance = Math.hypot(dx, dy);
-    const spread = 52 + progress * 34;
-    const fade = (1 - progress) ** 1.8;
-    const weight = Math.exp(-(pointDistance * pointDistance) / (2 * spread * spread)) * fade * trail.strength;
+    const spread = 56 + progress * 42;
+    const fade = (1 - progress) ** 1.35;
+    const weight = Math.exp(-(pointDistance * pointDistance) / (2 * spread * spread)) * fade * trail.strength * 1.08;
     const speed = Math.max(.001, Math.hypot(trail.vx, trail.vy));
     return {
       age,
@@ -108,8 +119,8 @@
       if (!influence?.weight) return;
       const wake = Math.sin(influence.distance * .07 - influence.age * .012 + glyph.morphOffset) * influence.weight;
       trailEnergy += influence.weight;
-      shiftX += influence.directionX * influence.weight * 9 - influence.directionY * wake * 3.5;
-      shiftY += influence.directionY * influence.weight * 9 + influence.directionX * wake * 3.5;
+      shiftX += influence.directionX * influence.weight * 11.5 - influence.directionY * wake * 4.2;
+      shiftY += influence.directionY * influence.weight * 11.5 + influence.directionX * wake * 4.2;
     });
     if (proximity && pointer) {
       const dx = glyph.x - pointer.x;
@@ -120,14 +131,14 @@
       shiftY += dy / length * current * 4.5;
     }
     const ambient = Math.sin(glyph.x * .012 + glyph.y * .009 + now * .00045 + glyph.morphOffset) * .55;
-    const visibleTrail = cap(trailEnergy, 0, 1);
-    const energy = cap(proximity + Math.abs(ripple) + visibleTrail * .85, 0, 1.6);
+    const visibleTrail = cap(trailEnergy, 0, 1.15);
+    const energy = cap(proximity + Math.abs(ripple) + visibleTrail, 0, 1.7);
     const morphing = energy > .12 ? Math.floor(now / 170 + glyph.morphOffset) % 7 : 0;
     return {
       x: glyph.x + shiftX + ambient,
       y: glyph.y + shiftY + ambient * .6,
-      alpha: cap(glyph.baseAlpha + proximity * .2 + Math.abs(ripple) * .18 + visibleTrail * .13, 0, .34),
-      size: 10 + proximity * 2.4 + Math.abs(ripple) * 1.8 + visibleTrail,
+      alpha: cap(glyph.baseAlpha + proximity * .2 + Math.abs(ripple) * .2 + visibleTrail * .18, 0, .4),
+      size: 10 + proximity * 2.4 + Math.abs(ripple) * 2 + visibleTrail * 1.35,
       character: GLYPHS[(glyph.glyphIndex + morphing) % GLYPHS.length],
       tone: glyph.tone,
     };
@@ -193,14 +204,19 @@
       draw(now);
     }
 
-    function addRipple(x, y, strength, now) {
-      ripples.push({ x, y, strength, startedAt: now });
-      if (ripples.length > 6) ripples.shift();
+    function addRipple(x, y, strength, now, kind = 'flow') {
+      ripples.push({ x, y, strength, startedAt: now, kind });
+      if (ripples.length > 8) ripples.shift();
+    }
+
+    function addTapRipples(x, y, now) {
+      addRipple(x, y, 1.22, now, 'tap');
+      addRipple(x, y, .62, now + 170, 'tap');
     }
 
     function addTrail(x, y, vx, vy, strength, now) {
       trails.push({ x, y, vx, vy, strength, startedAt: now });
-      if (trails.length > 20) trails.shift();
+      if (trails.length > 24) trails.shift();
     }
 
     function onPointerMove(event) {
@@ -219,7 +235,7 @@
           pointer.vy *= 1.1 / speed;
         }
         if (!reducedMotion?.matches && speed > .025 && now - lastTrail > 42) {
-          addTrail(x, y, pointer.vx, pointer.vy, cap(.25 + speed * 1.1, .25, 1), now);
+          addTrail(x, y, pointer.vx, pointer.vy, cap(.32 + speed * 1.16, .32, 1.08), now);
           lastTrail = now;
         }
       } else {
@@ -231,30 +247,53 @@
       pointer.lastAt = now;
       pointer.active = true;
       if (!reducedMotion?.matches && now - lastRipple > 95) {
-        addRipple(pointer.x, pointer.y, .34, now);
+        addRipple(pointer.x, pointer.y, .28, now);
         lastRipple = now;
       }
       if (reducedMotion?.matches) draw(now);
     }
 
-    function onPointerDown(event) {
-      pointer.x = event.clientX;
-      pointer.y = event.clientY;
+    function activatePointer(x, y) {
+      pointer.x = x;
+      pointer.y = y;
       pointer.active = true;
       const now = host.performance?.now?.() || Date.now();
       pointer.lastAt = now;
-      if (!reducedMotion?.matches) addRipple(pointer.x, pointer.y, 1, now);
+      lastRipple = now;
+      if (!reducedMotion?.matches) addTapRipples(pointer.x, pointer.y, now);
       else draw(now);
     }
 
-    function onPointerLeave() {
+    function onPointerDown(event) {
+      activatePointer(event.clientX, event.clientY);
+    }
+
+    function onTouchStart(event) {
+      const touch = event.touches?.[0] || event.changedTouches?.[0];
+      if (touch) activatePointer(touch.clientX, touch.clientY);
+    }
+
+    function deactivatePointer() {
+      if (!pointer.active) return;
       const now = host.performance?.now?.() || Date.now();
       const speed = Math.hypot(pointer.vx, pointer.vy);
       if (!reducedMotion?.matches && speed > .025) {
-        addTrail(pointer.x, pointer.y, pointer.vx, pointer.vy, cap(.35 + speed, .35, 1), now);
+        addTrail(pointer.x, pointer.y, pointer.vx, pointer.vy, cap(.42 + speed * 1.08, .42, 1.08), now);
       }
       pointer.active = false;
       if (reducedMotion?.matches) draw(now);
+    }
+
+    function onPointerLeave() {
+      deactivatePointer();
+    }
+
+    function onPointerEnd(event) {
+      if (event.pointerType === 'touch' || event.pointerType === 'pen') deactivatePointer();
+    }
+
+    function onTouchEnd() {
+      deactivatePointer();
     }
 
     function onResize() {
@@ -282,9 +321,17 @@
       if (running && !reducedMotion?.matches) frame = host.requestAnimationFrame(animate);
     }
 
+    const needsTouchFallback = !('PointerEvent' in host);
     host.addEventListener('pointermove', onPointerMove, { passive: true });
     host.addEventListener('pointerdown', onPointerDown, { passive: true });
+    host.addEventListener('pointerup', onPointerEnd, { passive: true });
+    host.addEventListener('pointercancel', onPointerEnd, { passive: true });
     host.addEventListener('pointerleave', onPointerLeave, { passive: true });
+    if (needsTouchFallback) {
+      host.addEventListener('touchstart', onTouchStart, { passive: true });
+      host.addEventListener('touchend', onTouchEnd, { passive: true });
+      host.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    }
     host.addEventListener('resize', onResize, { passive: true });
     document.addEventListener('visibilitychange', onVisibilityChange);
     reducedMotion?.addEventListener?.('change', onMotionPreferenceChange);
@@ -297,7 +344,14 @@
         host.cancelAnimationFrame(frame);
         host.removeEventListener('pointermove', onPointerMove);
         host.removeEventListener('pointerdown', onPointerDown);
+        host.removeEventListener('pointerup', onPointerEnd);
+        host.removeEventListener('pointercancel', onPointerEnd);
         host.removeEventListener('pointerleave', onPointerLeave);
+        if (needsTouchFallback) {
+          host.removeEventListener('touchstart', onTouchStart);
+          host.removeEventListener('touchend', onTouchEnd);
+          host.removeEventListener('touchcancel', onTouchEnd);
+        }
         host.removeEventListener('resize', onResize);
         document.removeEventListener('visibilitychange', onVisibilityChange);
         reducedMotion?.removeEventListener?.('change', onMotionPreferenceChange);
@@ -308,7 +362,10 @@
 
   return {
     GLYPHS,
+    FLOW_RIPPLE_RADIUS,
+    POINTER_RADIUS,
     RIPPLE_LIFETIME,
+    TAP_RIPPLE_RADIUS,
     TRAIL_LIFETIME,
     calculateGlyphState,
     createGlyphField,

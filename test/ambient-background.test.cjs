@@ -14,17 +14,37 @@ test('glyph fields are deterministic and cover the viewport at a stable density'
 test('pointer reveal is strongest at the cursor and fades to zero outside its radius', () => {
   const pointer = { x: 100, y: 100, active: true };
   assert.equal(ambient.pointerInfluence({ x: 100, y: 100 }, pointer), 1);
-  assert.ok(ambient.pointerInfluence({ x: 160, y: 100 }, pointer) > 0);
-  assert.equal(ambient.pointerInfluence({ x: 400, y: 100 }, pointer), 0);
+  assert.ok(ambient.pointerInfluence({ x: 120, y: 100 }, pointer) > 0);
+  assert.equal(ambient.pointerInfluence({ x: 100 + ambient.POINTER_RADIUS, y: 100 }, pointer), 0);
   assert.equal(ambient.pointerInfluence({ x: 100, y: 100 }, { ...pointer, active: false }), 0);
 });
 
 test('ripple influence peaks around the expanding wavefront and expires cleanly', () => {
   const ripple = { x: 0, y: 0, strength: 1, startedAt: 0 };
   const halfway = ambient.RIPPLE_LIFETIME / 2;
-  assert.ok(ambient.rippleInfluence({ x: 180, y: 0 }, ripple, halfway) > 0);
+  assert.ok(ambient.rippleInfluence({ x: ambient.FLOW_RIPPLE_RADIUS / 2, y: 0 }, ripple, halfway) > 0);
   assert.ok(Math.abs(ambient.rippleInfluence({ x: 0, y: 0 }, ripple, halfway)) < .001);
-  assert.equal(ambient.rippleInfluence({ x: 180, y: 0 }, ripple, ambient.RIPPLE_LIFETIME), 0);
+  assert.equal(ambient.rippleInfluence({ x: 140, y: 0 }, ripple, ambient.RIPPLE_LIFETIME), 0);
+});
+
+test('tap ripple sends a stronger wavefront outward with a secondary ring', () => {
+  const ripple = { x: 0, y: 0, strength: 1, startedAt: 0, kind: 'tap' };
+  const quarter = ambient.RIPPLE_LIFETIME / 4;
+  const halfway = ambient.RIPPLE_LIFETIME / 2;
+  const firstRadius = ambient.TAP_RIPPLE_RADIUS / 4;
+  const secondRadius = ambient.TAP_RIPPLE_RADIUS / 2;
+  const firstWave = ambient.rippleInfluence({ x: firstRadius, y: 0 }, ripple, quarter);
+  const secondWave = ambient.rippleInfluence({ x: secondRadius, y: 0 }, ripple, halfway);
+  const oldPosition = ambient.rippleInfluence({ x: firstRadius, y: 0 }, ripple, halfway);
+  const flowWave = ambient.rippleInfluence(
+    { x: ambient.FLOW_RIPPLE_RADIUS / 2, y: 0 },
+    { ...ripple, kind: 'flow' },
+    halfway,
+  );
+  assert.ok(firstWave > 0);
+  assert.ok(secondWave > 0);
+  assert.ok(Math.abs(secondWave) > Math.abs(oldPosition));
+  assert.ok(secondWave > flowWave);
 });
 
 test('trail influence keeps moving forward with inertia and fades after its lifetime', () => {
@@ -34,6 +54,7 @@ test('trail influence keeps moving forward with inertia and fades after its life
   assert.equal(moving.directionX, 1);
   assert.equal(moving.directionY, 0);
   assert.ok(moving.weight > 0);
+  assert.ok(ambient.trailInfluence({ x: 185, y: 0 }, trail, 1800)?.weight > 0);
   assert.equal(ambient.trailInfluence({ x: 120, y: 0 }, trail, ambient.TRAIL_LIFETIME), null);
 });
 
@@ -120,6 +141,17 @@ test('reduced-motion initialization renders once, caps pixel density, and cleans
   const beforeMove = drawCalls.length;
   listeners.get('pointermove')({ clientX: 80, clientY: 70 });
   assert.ok(drawCalls.length > beforeMove);
+
+  const beforePointerDown = drawCalls.length;
+  listeners.get('pointerdown')({ clientX: 90, clientY: 75 });
+  assert.ok(drawCalls.length > beforePointerDown);
+
+  const beforeTouch = drawCalls.length;
+  assert.ok(listeners.has('touchstart'));
+  listeners.get('touchstart')({ touches: [{ clientX: 100, clientY: 80 }] });
+  assert.ok(drawCalls.length > beforeTouch);
+  assert.ok(listeners.has('touchend'));
+  listeners.get('touchend')();
 
   controller.destroy();
   assert.equal(canvas.dataset.ambientReady, undefined);
