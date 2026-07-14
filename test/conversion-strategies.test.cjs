@@ -62,10 +62,31 @@ test('deep matcher preserves hue using the real MARD 221 palette', () => {
   assert.equal(matcher([58, 59, 58])[0], 'H5');
 });
 
+test('deep matcher treats a subtle cool cast in near-black pixels as neutral black', () => {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${fs.readFileSync('./palette.js', 'utf8')}\n;globalThis.palette=MARD_PALETTES[221];`, context);
+  const matcher = strategies.createDeepColorMatcher(context.palette);
+
+  assert.equal(strategies.isNearNeutralBlack([18, 22, 30]), true);
+  assert.match(matcher([18, 22, 30])[0], /^H(?:6|7|16)$/);
+  assert.equal(strategies.isNearNeutralBlack([15, 25, 55]), false);
+  assert.equal(matcher([15, 25, 55])[0], 'D10');
+});
+
 test('consolidateDeepRegions absorbs a rare muted intermediate into the dominant deep color', () => {
   const cells = filledGrid(5, 5, DEEP);
   cells[12] = MUTED;
   const result = strategies.consolidateDeepRegions(cells, { width: 5, height: 5 });
   assert.equal(result[12], DEEP);
   assert.equal(cells[12], MUTED);
+});
+
+test('consolidateDeepRegions does not absorb neutral black into a deep blue region', () => {
+  const black = ['BLACK', '#2c2c2c'];
+  const navy = ['NAVY', '#213244'];
+  const cells = filledGrid(5, 5, navy);
+  cells[12] = black;
+  const result = strategies.consolidateDeepRegions(cells, { width: 5, height: 5 });
+  assert.equal(result[12], black);
 });

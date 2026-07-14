@@ -32,6 +32,12 @@
   const chroma = lab => Math.hypot(lab[1], lab[2]);
   const colorId = entry => entry?.[0];
 
+  function isNearNeutralBlack(rgb) {
+    const lab = rgbToLab(rgb);
+    const spread = Math.max(...rgb) - Math.min(...rgb);
+    return lab[0] <= 22 && chroma(lab) <= 14 && spread <= 28;
+  }
+
   function colorCounts(cells) {
     const counts = new Map();
     cells.forEach(entry => {
@@ -179,6 +185,12 @@
           nearestDistance = distance;
         }
       }
+      if (isNearNeutralBlack(rgb)) {
+        const neutralDark = prepared.filter(item => item.lab[0] < 38 && item.chroma <= 7);
+        return neutralDark.reduce((best, item) => (
+          labDistance(sourceLab, item.lab) < labDistance(sourceLab, best.lab) ? item : best
+        ), neutralDark[0] || nearest).entry;
+      }
       const darkChromatic = sourceLab[0] < 58 && (sourceChroma >= 7 || spread >= 11);
       if (!darkChromatic) return nearest.entry;
       const minimumChroma = Math.max(9, sourceChroma * .45);
@@ -217,7 +229,9 @@
         const { groups, occupied } = neighborGroups(current, index, options, candidate => {
           if (candidate[0] === entry[0]) return false;
           const candidateLab = labs.get(candidate[0]);
-          return candidateLab[0] < 62 && chroma(candidateLab) >= 9;
+          const candidateChroma = chroma(candidateLab);
+          if (sourceChroma < 8 && candidateChroma >= 9) return false;
+          return candidateLab[0] < 62 && candidateChroma >= 9;
         });
         let best = null;
         groups.forEach(group => {
@@ -248,6 +262,7 @@
     createDeepColorMatcher,
     colorCounts,
     hexToRgb,
+    isNearNeutralBlack,
     labDistance,
     rgbToLab,
   };

@@ -506,7 +506,11 @@ function convert() {
   const deepLineMask = detectDeepLineMask(colors, activeMask);
   const deepLineColor = dominantLineColor(colors, deepLineMask);
   const deepStrategyOptions = { width: W, height: H, activeMask, lineMask: deepLineMask };
-  const deepConverted = colors.map((rgb, i) => !activeMask[i] ? null : deepLineMask[i] ? deepLineColor : deepColorMatcher(rgb));
+  const deepConverted = colors.map((rgb, i) => {
+    if (!activeMask[i]) return null;
+    if (!deepLineMask[i]) return deepColorMatcher(rgb);
+    return DouhuiConversionStrategies.isNearNeutralBlack(rgb) ? deepColorMatcher(rgb) : deepLineColor;
+  });
   const deepSmoothed = smoothBeadRegions(deepConverted, activeMask, deepLineMask);
   const deepCleaned = DouhuiConversionStrategies.cleanSpeckles(deepSmoothed, deepStrategyOptions);
   const deepConsolidated = DouhuiConversionStrategies.consolidateDeepRegions(deepCleaned, deepStrategyOptions);
