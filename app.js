@@ -8,6 +8,7 @@ const ctx = canvas.getContext('2d');
 const WATERMARK = 'ERIC_ZHOU · PERLER STUDIO';
 const BRAND = 'ERIC_ZHOU · 豆绘';
 let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, history = [], redoHistory = [], timer, editLocked = false;
+let renderCell = 16, renderGutter = 0;
 
 const cap = (v, a, b) => Math.max(a, Math.min(b, v));
 const cloneBeads = value => value.map(row => row.slice());
@@ -89,12 +90,19 @@ function setHistoryButtons() {
 function setEditLocked(locked, showButton = false) {
   editLocked = locked;
   const button = $('editBtn');
+  const state = $('editState');
   button.classList.toggle('hidden', !showButton);
   button.classList.toggle('editing', showButton && !locked);
-  button.disabled = showButton && !locked;
-  button.querySelector('span').textContent = locked ? '开始编辑' : '编辑中';
-  button.setAttribute('aria-label', locked ? '开始编辑图纸' : '图纸正在编辑');
+  button.disabled = false;
+  button.querySelector('span').textContent = locked ? '开始编辑' : '结束编辑';
+  button.setAttribute('aria-label', locked ? '开始编辑图纸' : '结束编辑并锁定图纸');
   button.setAttribute('aria-pressed', String(showButton && !locked));
+  if (state) {
+    state.classList.toggle('hidden', !showButton);
+    state.classList.toggle('editing', showButton && !locked);
+    state.classList.toggle('locked', showButton && locked);
+    state.textContent = locked ? '锁定状态' : '编辑状态';
+  }
   $('clearBtn').disabled = locked;
   canvas.classList.toggle('edit-locked', locked);
   setHistoryButtons();
@@ -132,20 +140,87 @@ function drawNumbers(target, cell, highQuality = false) {
   target.restore();
 }
 
-function drawGrid(target, cell) {
-  target.save();
-  target.strokeStyle = '#d5d3cc';
-  target.lineWidth = Math.max(1, Math.round(cell * .035));
+function coordinateGutter(cell, highQuality = false) {
+  return Math.max(highQuality ? 58 : 24, Math.ceil(cell * (highQuality ? 1.8 : 2.2)));
+}
+
+function patternMetrics(cell, options = {}) {
+  const { showCoordinates = true, highQualityText = false } = options;
+  const gutter = showCoordinates ? coordinateGutter(cell, highQualityText) : 0;
+  return {
+    gutter,
+    gridWidth: W * cell,
+    gridHeight: H * cell,
+    width: W * cell + gutter,
+    height: H * cell + gutter,
+  };
+}
+
+function strokeGridLines(target, cell, major) {
+  const width = major ? Math.max(2, Math.round(cell * .12)) : Math.max(1, Math.round(cell * .035));
+  const nudge = width <= 1.5 ? .5 : 0;
+  target.strokeStyle = major ? '#8b877e' : '#d5d3cc';
+  target.lineWidth = width;
   target.beginPath();
   for (let x = 0; x <= W; x++) {
-    target.moveTo(x * cell + .5, 0);
-    target.lineTo(x * cell + .5, H * cell);
+    if (major !== (x % 10 === 0 || x === W)) continue;
+    const px = x * cell + nudge;
+    target.moveTo(px, 0);
+    target.lineTo(px, H * cell);
   }
   for (let y = 0; y <= H; y++) {
-    target.moveTo(0, y * cell + .5);
-    target.lineTo(W * cell, y * cell + .5);
+    if (major !== (y % 10 === 0 || y === H)) continue;
+    const py = y * cell + nudge;
+    target.moveTo(0, py);
+    target.lineTo(W * cell, py);
   }
   target.stroke();
+}
+
+function drawGrid(target, cell) {
+  target.save();
+  strokeGridLines(target, cell, false);
+  strokeGridLines(target, cell, true);
+  target.restore();
+}
+
+function drawCoordinates(target, cell, gutter, highQuality = false) {
+  const fontSize = Math.max(highQuality ? 16 : 5, Math.min(highQuality ? 22 : 10, Math.floor(cell * .72)));
+  const rotateColumns = cell < fontSize * 2.2;
+  target.save();
+  target.fillStyle = '#f5f3ee';
+  target.fillRect(0, 0, gutter + W * cell, gutter);
+  target.fillRect(0, 0, gutter, gutter + H * cell);
+  target.strokeStyle = '#c8c4ba';
+  target.lineWidth = Math.max(1, Math.round(cell * .045));
+  target.beginPath();
+  target.moveTo(gutter, 0);
+  target.lineTo(gutter, gutter + H * cell);
+  target.moveTo(0, gutter);
+  target.lineTo(gutter + W * cell, gutter);
+  target.stroke();
+  target.fillStyle = '#5f5b54';
+  target.font = `700 ${fontSize}px "DM Mono", Consolas, monospace`;
+  target.textBaseline = 'middle';
+  for (let x = 0; x < W; x++) {
+    const label = String(x + 1);
+    const cx = gutter + x * cell + cell / 2;
+    if (rotateColumns) {
+      target.save();
+      target.translate(cx, gutter - Math.max(5, fontSize * .65));
+      target.rotate(-Math.PI / 2);
+      target.textAlign = 'left';
+      target.fillText(label, 0, 0);
+      target.restore();
+    } else {
+      target.textAlign = 'center';
+      target.fillText(label, cx, gutter / 2);
+    }
+  }
+  target.textAlign = 'right';
+  for (let y = 0; y < H; y++) {
+    target.fillText(String(y + 1), gutter - Math.max(5, cell * .32), gutter + y * cell + cell / 2);
+  }
   target.restore();
 }
 
@@ -169,9 +244,12 @@ function drawWatermarkOverlay(target, cell) {
 }
 
 function drawPattern(target, cell, options = {}) {
-  const { showGrid = grid, watermark = false, highQualityText = false } = options;
+  const { showGrid = grid, watermark = false, highQualityText = false, showCoordinates = true } = options;
+  const { gutter, width, height } = patternMetrics(cell, { showCoordinates, highQualityText });
   target.fillStyle = '#fff';
-  target.fillRect(0, 0, W * cell, H * cell);
+  target.fillRect(0, 0, width, height);
+  target.save();
+  target.translate(gutter, gutter);
   beads.forEach((r, y) => r.forEach((b, x) => {
     target.fillStyle = b?.[1] || '#fff';
     target.fillRect(x * cell, y * cell, cell, cell);
@@ -179,12 +257,17 @@ function drawPattern(target, cell, options = {}) {
   if (watermark) drawWatermarkOverlay(target, cell);
   if (showGrid) drawGrid(target, cell);
   drawNumbers(target, cell, highQualityText);
+  target.restore();
+  if (showCoordinates) drawCoordinates(target, cell, gutter, highQualityText);
 }
 
 function render() {
   const c = cap(Math.round(900 / Math.max(W, H)), 6, 16) * zoom;
-  canvas.width = W * c;
-  canvas.height = H * c;
+  const { width, height, gutter } = patternMetrics(c);
+  renderCell = c;
+  renderGutter = gutter;
+  canvas.width = width;
+  canvas.height = height;
   canvas.style.width = 'auto';
   canvas.style.height = 'auto';
   drawPattern(ctx, c);
@@ -335,8 +418,10 @@ function convert() {
 
 function draw(e) {
   const r = canvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - r.left) / r.width * W);
-  const y = Math.floor((e.clientY - r.top) / r.height * H);
+  const px = (e.clientX - r.left) / r.width * canvas.width - renderGutter;
+  const py = (e.clientY - r.top) / r.height * canvas.height - renderGutter;
+  const x = Math.floor(px / renderCell);
+  const y = Math.floor(py / renderCell);
   if (beads[y]?.[x] !== undefined) {
     beads[y][x] = selected;
     render();
@@ -458,8 +543,7 @@ function buildExportCanvas() {
   const list = usedBeads();
   const counts = colorCounts(list);
   const cell = cap(Math.floor(7600 / Math.max(W, H)), 32, 44);
-  const chartW = W * cell;
-  const chartH = H * cell;
+  const { width: chartW, height: chartH } = patternMetrics(cell, { highQualityText: true });
   const margin = Math.round(cell * 1.6);
   const headerH = Math.round(cell * 3);
   const footerH = Math.round(cell * 2.2);
@@ -657,9 +741,9 @@ $('redoBtn').onclick = () => {
 };
 $('clearBtn').onclick = clearCanvas;
 $('editBtn').onclick = () => {
-  if (!editLocked) return;
-  setEditLocked(false, true);
-  showToast('已开启图纸编辑');
+  const nextLocked = !editLocked;
+  setEditLocked(nextLocked, true);
+  showToast(nextLocked ? '已锁定图纸' : '已开启图纸编辑');
 };
 $('saveBtn').onclick = exportImage;
 
