@@ -7,7 +7,7 @@ const canvas = $('beadCanvas');
 const ctx = canvas.getContext('2d');
 const WATERMARK = 'ERIC_ZHOU · PERLER STUDIO';
 const BRAND = 'ERIC_ZHOU · 豆绘';
-let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, history = [], redoHistory = [], timer, editLocked = false;
+let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, showColorNumbers = true, history = [], redoHistory = [], timer, editLocked = false;
 let renderCell = 16, renderGutter = 0;
 
 const cap = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -252,7 +252,7 @@ function drawWatermarkOverlay(target, cell) {
 }
 
 function drawPattern(target, cell, options = {}) {
-  const { showGrid = grid, watermark = false, highQualityText = false, showCoordinates = true } = options;
+  const { showGrid = grid, showNumbers = true, watermark = false, highQualityText = false, showCoordinates = true } = options;
   const { gutter, width, height } = patternMetrics(cell, { showCoordinates, highQualityText });
   target.fillStyle = '#fff';
   target.fillRect(0, 0, width, height);
@@ -264,7 +264,7 @@ function drawPattern(target, cell, options = {}) {
   }));
   if (watermark) drawWatermarkOverlay(target, cell);
   if (showGrid) drawGrid(target, cell);
-  drawNumbers(target, cell, highQualityText);
+  if (showNumbers) drawNumbers(target, cell, highQualityText);
   target.restore();
   if (showCoordinates) drawCoordinates(target, cell, gutter, highQualityText);
 }
@@ -278,7 +278,7 @@ function render() {
   canvas.height = height;
   canvas.style.width = 'auto';
   canvas.style.height = 'auto';
-  drawPattern(ctx, c);
+  drawPattern(ctx, c, { showNumbers: showColorNumbers });
   const a = usedBeads();
   $('beadTotal').textContent = a.length;
   $('usedColors').textContent = new Set(a.map(x => x[0])).size;
@@ -733,6 +733,16 @@ $('zoomOut').onclick = () => {
 $('gridBtn').onclick = () => {
   grid = !grid;
   $('gridBtn').classList.toggle('active', grid);
+  render();
+};
+$('previewBtn').onclick = () => {
+  showColorNumbers = !showColorNumbers;
+  const previewing = !showColorNumbers;
+  const button = $('previewBtn');
+  button.classList.toggle('active', previewing);
+  button.setAttribute('aria-pressed', String(previewing));
+  button.setAttribute('aria-label', previewing ? '退出预览（显示色号）' : '预览图纸（隐藏色号）');
+  button.dataset.tooltip = previewing ? '退出预览（显示色号）' : '预览（隐藏色号）';
   render();
 };
 $('undoBtn').onclick = () => {
