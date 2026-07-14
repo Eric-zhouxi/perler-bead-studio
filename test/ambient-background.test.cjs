@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const ambient = require('../ambient-background.js');
+const ambient = require('../ripple-background.js');
 
 test('glyph fields are deterministic and cover the viewport at a stable density', () => {
   const first = ambient.createGlyphField(300, 180, 30, 42);

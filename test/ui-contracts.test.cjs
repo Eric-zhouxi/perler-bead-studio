@@ -5,7 +5,8 @@ const fs = require('node:fs');
 test('conversion strategies load before the app and expose exactly three version controls', () => {
   const html = fs.readFileSync('./index.html', 'utf8');
   assert.ok(html.indexOf('id="ambientCanvas"') < html.indexOf('class="app-shell"'));
-  assert.ok(html.indexOf('ambient-background.js') < html.indexOf('app.js'));
+  assert.ok(html.indexOf('ripple-background.js') < html.indexOf('app.js'));
+  assert.doesNotMatch(html, /ambient-background\\.js/, 'the retired script name must not be reused because browsers may cache an incompatible version');
   assert.match(html, /<canvas[^>]*id="ambientCanvas"[^>]*aria-hidden="true"/);
   assert.match(html, /id="ambientToggle"[^>]*aria-pressed="false"/);
   assert.ok(html.indexOf('conversion-strategies.js') < html.indexOf('app.js'));
