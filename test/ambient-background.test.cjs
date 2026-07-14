@@ -27,6 +27,16 @@ test('ripple influence peaks around the expanding wavefront and expires cleanly'
   assert.equal(ambient.rippleInfluence({ x: 180, y: 0 }, ripple, ambient.RIPPLE_LIFETIME), 0);
 });
 
+test('trail influence keeps moving forward with inertia and fades after its lifetime', () => {
+  const trail = { x: 0, y: 0, vx: .6, vy: 0, strength: 1, startedAt: 0 };
+  const moving = ambient.trailInfluence({ x: 120, y: 0 }, trail, 500);
+  assert.ok(moving.x > 100);
+  assert.equal(moving.directionX, 1);
+  assert.equal(moving.directionY, 0);
+  assert.ok(moving.weight > 0);
+  assert.equal(ambient.trailInfluence({ x: 120, y: 0 }, trail, ambient.TRAIL_LIFETIME), null);
+});
+
 test('glyph state becomes brighter and moves when the pointer and ripple are nearby', () => {
   const glyph = ambient.createGlyphField(40, 40, 30, 7)[0];
   const calm = ambient.calculateGlyphState(glyph, { active: false }, [], 500);
@@ -40,6 +50,21 @@ test('glyph state becomes brighter and moves when the pointer and ripple are nea
   assert.ok(active.size > calm.size);
   assert.ok(active.x !== calm.x || active.y !== calm.y);
   assert.ok(ambient.GLYPHS.includes(active.character));
+});
+
+test('a moving trail leaves a brighter displaced wake after the pointer has gone', () => {
+  const glyph = { ...ambient.createGlyphField(80, 40, 30, 9)[1], x: 120, y: 0 };
+  const calm = ambient.calculateGlyphState(glyph, { active: false }, [], 500);
+  const trailing = ambient.calculateGlyphState(
+    glyph,
+    { active: false },
+    [],
+    500,
+    [{ x: 0, y: 0, vx: .6, vy: 0, strength: 1, startedAt: 0 }],
+  );
+  assert.ok(trailing.alpha > calm.alpha);
+  assert.ok(trailing.x > calm.x);
+  assert.ok(trailing.size > calm.size);
 });
 
 test('reduced-motion initialization renders once, caps pixel density, and cleans up', () => {
