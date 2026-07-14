@@ -506,11 +506,12 @@
     }
 
     toggle.addEventListener('click', onToggle);
-    let storedPreference = false;
+    let storedPreference = true;
     try {
-      storedPreference = host.localStorage?.getItem(STORAGE_KEY) === 'true';
+      const savedPreference = host.localStorage?.getItem(STORAGE_KEY);
+      storedPreference = savedPreference === null ? true : savedPreference === 'true';
     } catch {
-      storedPreference = false;
+      storedPreference = true;
     }
     setEnabled(storedPreference, false);
 

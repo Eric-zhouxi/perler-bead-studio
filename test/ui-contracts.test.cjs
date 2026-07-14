@@ -6,6 +6,7 @@ test('conversion strategies load before the app and expose exactly three version
   const html = fs.readFileSync('./index.html', 'utf8');
   assert.ok(html.indexOf('id="ambientCanvas"') < html.indexOf('class="app-shell"'));
   assert.ok(html.indexOf('ripple-background.js') < html.indexOf('app.js'));
+  assert.match(html, /ripple-background\.js\?v=default-on-20260714/, 'the default-on behavior must bypass stale cached scripts');
   assert.doesNotMatch(html, /ambient-background\\.js/, 'the retired script name must not be reused because browsers may cache an incompatible version');
   assert.match(html, /<canvas[^>]*id="ambientCanvas"[^>]*aria-hidden="true"/);
   assert.match(html, /id="ambientToggle"[^>]*aria-pressed="false"/);

@@ -173,7 +173,7 @@ test('initialization exits cleanly when a 2D canvas context is unavailable', () 
   assert.equal(canvas.dataset.ambientReady, undefined);
 });
 
-test('interaction toggle defaults off, persists the choice, and releases the canvas when disabled', () => {
+test('interaction toggle defaults on, persists the choice, and releases the canvas when disabled', () => {
   const hostListeners = new Map();
   const documentListeners = new Map();
   const mediaListeners = new Map();
@@ -249,19 +249,11 @@ test('interaction toggle defaults off, persists the choice, and releases the can
 
   const manager = ambient.install(host);
   assert.ok(manager);
-  assert.equal(manager.enabled, false);
-  assert.equal(attributes.get('aria-pressed'), 'false');
-  assert.equal(canvas.dataset.ambientReady, undefined);
-  assert.equal(canvas.width, 1);
-  assert.equal(canvas.height, 1);
-
-  toggleListeners.get('click')();
   assert.equal(manager.enabled, true);
   assert.equal(attributes.get('aria-pressed'), 'true');
   assert.equal(canvas.dataset.ambientReady, 'true');
   assert.equal(canvasClasses.has('hidden'), false);
   assert.equal(toggleClasses.has('active'), true);
-  assert.equal(stored.get(ambient.STORAGE_KEY), 'true');
 
   toggleListeners.get('click')();
   assert.equal(manager.enabled, false);
@@ -274,4 +266,39 @@ test('interaction toggle defaults off, persists the choice, and releases the can
   manager.destroy();
   assert.equal(toggle.dataset.ambientToggleReady, undefined);
   assert.equal(toggleListeners.size, 0);
+});
+
+test('interaction toggle respects a previously saved disabled preference', () => {
+  const canvasClasses = new Set(['ambient-canvas']);
+  const canvas = {
+    classList: {
+      add(value) { canvasClasses.add(value); },
+      remove(value) { canvasClasses.delete(value); },
+    },
+    dataset: {},
+    width: 300,
+    height: 150,
+  };
+  const toggle = {
+    dataset: {},
+    classList: { toggle() {} },
+    setAttribute() {},
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const manager = ambient.install({
+    document: {
+      getElementById(id) {
+        if (id === 'ambientCanvas') return canvas;
+        if (id === 'ambientToggle') return toggle;
+        return null;
+      },
+    },
+    localStorage: { getItem: () => 'false' },
+  });
+
+  assert.equal(manager.enabled, false);
+  assert.equal(canvasClasses.has('hidden'), true);
+  assert.equal(canvas.width, 1);
+  assert.equal(canvas.height, 1);
 });
