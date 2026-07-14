@@ -203,6 +203,12 @@
   font-size: 10px;
 }
 
+#ambientToggle.active {
+  color: var(--orange);
+  border-color: var(--orange);
+  background: #fff8f4;
+}
+
 @media (max-width: 800px) {
   .user-button {
     padding-right: 5px;

@@ -6,21 +6,14 @@
     <meta name="description" content="使用 MARD 221 或 291 标准色号将图片转换为可导出的拼豆图纸。" />
     <title>豆绘 · MARD 拼豆图纸</title>
     <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="ambient-background.css" />
     <link rel="stylesheet" href="auth.css" />
   </head>
   <body>
-    <div class="ambient-field" id="ambientField" aria-hidden="true">
-      <div class="ambient-magnet" id="ambientMagnet">
-        <i class="ambient-bead bead-orange"></i><i class="ambient-bead bead-blue"></i>
-        <i class="ambient-bead bead-ink"></i><i class="ambient-bead bead-cream"></i>
-        <i class="ambient-bead bead-small"></i>
-      </div>
-    </div>
+    <canvas class="ambient-canvas hidden" id="ambientCanvas" aria-hidden="true"></canvas>
     <main class="app-shell">
       <header class="topbar">
         <a class="brand" href="#"><span class="brand-mark">◈</span>豆绘<span>PERLER STUDIO</span></a>
-        <div class="top-actions"><button class="user-button" id="userBtn" type="button"><span class="user-avatar" id="userAvatar">豆</span><span id="userName">登录</span></button><button class="icon-button" id="clearBtn" aria-label="清空画布" data-tooltip="清空画布"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button><button class="primary-button" id="saveBtn">导出图纸</button></div>
+        <div class="top-actions"><button class="user-button" id="userBtn" type="button"><span class="user-avatar" id="userAvatar">豆</span><span id="userName">登录</span></button><button class="icon-button" id="ambientToggle" type="button" aria-label="开启互动背景" aria-pressed="false" data-tooltip="开启互动背景"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/><path d="M3 15c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/></svg></button><button class="icon-button" id="clearBtn" aria-label="清空画布" data-tooltip="清空画布"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button><button class="primary-button" id="saveBtn">导出图纸</button></div>
       </header>
 
       <section class="hero">

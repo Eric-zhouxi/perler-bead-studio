@@ -4,10 +4,10 @@ const fs = require('node:fs');
 
 test('conversion strategies load before the app and expose exactly three version controls', () => {
   const html = fs.readFileSync('./index.html', 'utf8');
-  assert.ok(html.indexOf('id="ambientField"') < html.indexOf('class="app-shell"'));
+  assert.ok(html.indexOf('id="ambientCanvas"') < html.indexOf('class="app-shell"'));
   assert.ok(html.indexOf('ambient-background.js') < html.indexOf('app.js'));
-  assert.match(html, /<div[^>]*id="ambientField"[^>]*aria-hidden="true"/);
-  assert.match(html, /id="ambientMagnet"/);
+  assert.match(html, /<canvas[^>]*id="ambientCanvas"[^>]*aria-hidden="true"/);
+  assert.match(html, /id="ambientToggle"[^>]*aria-pressed="false"/);
   assert.ok(html.indexOf('conversion-strategies.js') < html.indexOf('app.js'));
   assert.equal((html.match(/data-pattern-variant=/g) || []).length, 3);
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
@@ -25,12 +25,9 @@ test('version controls retain hidden, active, locked, and mobile layout rules', 
   assert.match(auth, /\.canvas-toolbar \.tool-buttons\s*\{[^}]*width:\s*100%;/s);
 });
 
-test('ambient field remains behind the application and only animates composited properties', () => {
+test('ambient canvas remains behind the application and never captures interaction', () => {
   const style = fs.readFileSync('./style.css', 'utf8');
-  const ambientStyle = fs.readFileSync('./ambient-background.css', 'utf8');
   assert.match(style, /body\{[^}]*isolation:isolate;/);
-  assert.match(ambientStyle, /\.ambient-field\s*\{[^}]*position:\s*fixed;[^}]*z-index:\s*0;[^}]*contain:\s*strict;[^}]*pointer-events:\s*none;/s);
-  assert.match(ambientStyle, /\.ambient-magnet\s*\{[^}]*will-change:\s*transform, opacity;/s);
-  assert.match(ambientStyle, /\.ambient-pulse\s*\{[^}]*animation:\s*ambient-bead-pulse/s);
+  assert.match(style, /\.ambient-canvas\{[^}]*position:fixed;[^}]*z-index:0;[^}]*pointer-events:none(?:;|})/);
   assert.match(style, /\.app-shell\{[^}]*position:relative;[^}]*z-index:1(?:;|})/);
 });
