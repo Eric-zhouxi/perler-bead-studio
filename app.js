@@ -7,7 +7,7 @@ const canvas = $('beadCanvas');
 const ctx = canvas.getContext('2d');
 const WATERMARK = 'ERIC_ZHOU · PERLER STUDIO';
 const BRAND = 'ERIC_ZHOU · 豆绘';
-let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, showColorNumbers = true, history = [], redoHistory = [], timer, editLocked = false, activeMode = 'image';
+let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, showColorNumbers = true, history = [], redoHistory = [], timer, editLocked = false, activeMode = 'image', activeTool = 'draw';
 let renderCell = 16, renderGutter = 0;
 let patternVariants = [], selectedPatternVariant = 0, deepColorMatcher;
 const VARIANT_LABELS = ['原始识别', '净色优化', '深色增强'];
@@ -90,6 +90,26 @@ function setHistoryButtons() {
   if (redo) redo.disabled = editLocked || redoHistory.length === 0;
 }
 
+function setActiveTool(tool) {
+  activeTool = tool === 'fill' ? 'fill' : 'draw';
+  const button = $('fillBtn');
+  const filling = activeTool === 'fill';
+  if (button) {
+    button.classList.toggle('active', filling);
+    button.setAttribute('aria-pressed', String(filling));
+    button.setAttribute('aria-label', filling ? '退出区域填充' : '区域填充');
+    button.dataset.tooltip = filling ? '退出区域填充' : '区域填充';
+  }
+  canvas.classList.toggle('fill-tool', filling);
+}
+
+function updateToolControls() {
+  const button = $('fillBtn');
+  if (!button) return;
+  button.disabled = editLocked || !beads.length;
+  if (button.disabled && activeTool === 'fill') setActiveTool('draw');
+}
+
 function setEditLocked(locked, showButton = false) {
   editLocked = locked;
   const button = $('editBtn');
@@ -109,12 +129,14 @@ function setEditLocked(locked, showButton = false) {
   $('clearBtn').disabled = locked;
   canvas.classList.toggle('edit-locked', locked);
   setHistoryButtons();
+  updateToolControls();
 }
 
 function resetHistory() {
   history = [];
   redoHistory = [];
   setHistoryButtons();
+  updateToolControls();
 }
 
 function updateVariantSwitcher() {
@@ -526,16 +548,37 @@ function convert() {
   render();
 }
 
-function draw(e) {
+function canvasCellAt(e) {
   const r = canvas.getBoundingClientRect();
   const px = (e.clientX - r.left) / r.width * canvas.width - renderGutter;
   const py = (e.clientY - r.top) / r.height * canvas.height - renderGutter;
   const x = Math.floor(px / renderCell);
   const y = Math.floor(py / renderCell);
-  if (beads[y]?.[x] !== undefined) {
-    beads[y][x] = selected;
-    render();
+  return beads[y]?.[x] !== undefined ? { x, y } : null;
+}
+
+function draw(e) {
+  const cell = canvasCellAt(e);
+  if (!cell) return;
+  beads[cell.y][cell.x] = selected;
+  render();
+}
+
+function fillRegion(startX, startY, color = selected) {
+  if (beads[startY]?.[startX] === undefined || !color) return false;
+  const targetId = beads[startY][startX]?.[0] || null;
+  if (targetId === color[0]) return false;
+  pushHistory();
+  const stack = [[startX, startY]];
+  while (stack.length) {
+    const [x, y] = stack.pop();
+    if (x < 0 || y < 0 || x >= W || y >= H) continue;
+    if ((beads[y][x]?.[0] || null) !== targetId) continue;
+    beads[y][x] = color;
+    stack.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]);
   }
+  render();
+  return true;
 }
 
 function palette() {
@@ -804,11 +847,17 @@ function clearCanvas() {
 
 canvas.onpointerdown = e => {
   if (!beads.length || editLocked) return;
+  const cell = canvasCellAt(e);
+  if (!cell) return;
+  if (activeTool === 'fill') {
+    fillRegion(cell.x, cell.y);
+    return;
+  }
   canvas.setPointerCapture(e.pointerId);
   pushHistory();
   draw(e);
 };
-canvas.onpointermove = e => e.buttons && !editLocked && draw(e);
+canvas.onpointermove = e => e.buttons && !editLocked && activeTool === 'draw' && draw(e);
 document.querySelectorAll('[data-size]').forEach(b => b.onclick = () => {
   const n = +b.dataset.size;
   $('gridWidth').value = $('gridHeight').value = n;
@@ -890,6 +939,12 @@ $('redoBtn').onclick = () => {
   render();
 };
 $('clearBtn').onclick = clearCanvas;
+$('fillBtn').onclick = () => {
+  if (!beads.length) return void showToast('请先创建图纸');
+  if (editLocked) return void showToast('请先点击“开始编辑”');
+  setActiveTool(activeTool === 'fill' ? 'draw' : 'fill');
+  showToast(activeTool === 'fill' ? '已开启区域填充' : '已退出区域填充');
+};
 $('editBtn').onclick = () => {
   const nextLocked = !editLocked;
   saveSelectedPatternVariant();
@@ -1017,3 +1072,4 @@ document.head.insertAdjacentHTML('beforeend', '<style>.canvas-stage canvas{max-w
 setHistoryButtons();
 updateVariantSwitcher();
 palette();
+updateToolControls();

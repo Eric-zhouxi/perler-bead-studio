@@ -8,3 +8,4 @@
 .canvas-toolbar{position:relative;z-index:10;overflow:visible}.canvas-stage{z-index:1}.tool-buttons button[data-tooltip]:after{top:auto;bottom:calc(100% + 8px);z-index:30;box-shadow:0 6px 18px #20201e30}
 .brand{flex:0 0 auto;white-space:nowrap}
 @media(max-width:600px){.topbar{height:auto;min-height:82px;display:grid;grid-template-columns:1fr;padding:12px 0;gap:10px}.brand{justify-self:start}.brand span:last-child{display:none}.top-actions{width:100%;justify-content:space-between;gap:6px}.top-actions .primary-button{padding:10px 12px}}
+.canvas-stage canvas.fill-tool{cursor:cell}

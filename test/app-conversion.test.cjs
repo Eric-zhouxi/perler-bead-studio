@@ -106,7 +106,7 @@ function loadStudio(pixelData) {
   createElement('imagePanel', ['image-panel']);
   createElement('canvasFooter', ['canvas-footer']);
   const ids = [
-    'clearBtn', 'undoBtn', 'redoBtn', 'previewBtn', 'gridBtn', 'zoomOut', 'zoomIn', 'zoomLabel', 'beadTotal',
+    'clearBtn', 'undoBtn', 'redoBtn', 'fillBtn', 'previewBtn', 'gridBtn', 'zoomOut', 'zoomIn', 'zoomLabel', 'beadTotal',
     'usedColors', 'gridInfo', 'projectTitle', 'commonPalette', 'palette', 'paletteCount', 'allPaletteCount', 'legend',
     'imageInput', 'imagePreview', 'removeImage', 'saveBtn', 'startCreate', 'toast',
   ];
@@ -175,6 +175,7 @@ function loadStudio(pixelData) {
       selectPatternVariant,
       startFreshCreate,
       startImageMode,
+      fillRegion(x, y, code) { return fillRegion(x, y, paletteById.get(code)); },
       state() {
         const usage = colorCounts();
         return {
@@ -270,4 +271,29 @@ test('leaving a drawing for image mode asks first, then restores the landing sta
   assert.equal(studio.elements.get('beadCanvas').classList.contains('hidden'), true);
   assert.equal(studio.elements.get('emptyState').classList.contains('hidden'), false);
   assert.equal(studio.elements.get('gridInfo').textContent, '等待创建图纸');
+});
+
+test('region fill stays inside a four-way color boundary and can be undone', () => {
+  const studio = loadStudio(buildPixels());
+  studio.api.startFreshCreate();
+  for (let x = 1; x <= 4; x++) {
+    studio.api.editCell(x, 1, 'H2');
+    studio.api.editCell(x, 4, 'H2');
+  }
+  for (let y = 2; y <= 3; y++) {
+    studio.api.editCell(1, y, 'H2');
+    studio.api.editCell(4, y, 'H2');
+  }
+
+  assert.equal(studio.api.fillRegion(2, 2, 'A1'), true);
+  const filled = studio.api.state().beads;
+  assert.equal(filled[2][2], 'A1');
+  assert.equal(filled[2][3], 'A1');
+  assert.equal(filled[3][2], 'A1');
+  assert.equal(filled[3][3], 'A1');
+  assert.equal(filled[0][0], null, 'fill must not cross the boundary');
+  assert.equal(filled[1][2], 'H2', 'boundary color must remain unchanged');
+
+  studio.elements.get('undoBtn').click();
+  assert.equal(studio.api.state().beads[2][2], null);
 });
