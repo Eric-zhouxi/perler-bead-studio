@@ -8,13 +8,14 @@
     <link rel="stylesheet" href="style.css?v=tooltip-up-20260715" />
     <link rel="stylesheet" href="auth.css" />
     <link rel="stylesheet" href="button-motion.css?v=elastic-buttons-20260715" />
+    <link rel="stylesheet" href="manual.css?v=detailed-guide-20260715" />
   </head>
   <body>
     <canvas class="ambient-canvas hidden" id="ambientCanvas" aria-hidden="true"></canvas>
     <main class="app-shell">
       <header class="topbar">
         <a class="brand" href="#"><span class="brand-mark">◈</span>豆绘<span>PERLER STUDIO</span></a>
-        <div class="top-actions"><button class="user-button" id="userBtn" type="button"><span class="user-avatar" id="userAvatar">豆</span><span id="userName">登录</span></button><button class="icon-button" id="ambientToggle" type="button" aria-label="开启互动背景" aria-pressed="false" data-tooltip="开启互动背景"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/><path d="M3 15c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/></svg></button><button class="icon-button" id="clearBtn" aria-label="清空画布" data-tooltip="清空画布"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button><button class="primary-button" id="saveBtn">导出图纸</button></div>
+        <div class="top-actions"><button class="text-button manual-button" id="manualBtn" type="button" aria-haspopup="dialog" aria-controls="manualModal"><span class="manual-button-icon" aria-hidden="true">?</span><span class="manual-button-label">使用说明</span></button><button class="user-button" id="userBtn" type="button"><span class="user-avatar" id="userAvatar">豆</span><span id="userName">登录</span></button><button class="icon-button" id="ambientToggle" type="button" aria-label="开启互动背景" aria-pressed="false" data-tooltip="开启互动背景"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/><path d="M3 15c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/></svg></button><button class="icon-button" id="clearBtn" aria-label="清空画布" data-tooltip="清空画布"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button><button class="primary-button" id="saveBtn">导出图纸</button></div>
       </header>
 
       <section class="hero">
@@ -66,6 +67,137 @@
     </main>
 
     <div class="toast" id="toast"></div>
+    <div class="modal-backdrop hidden" id="manualModal" role="dialog" aria-modal="true" aria-labelledby="manualTitle" aria-hidden="true">
+      <section class="modal manual-modal">
+        <header class="modal-header"><div><span>USER GUIDE</span><h2 id="manualTitle">豆绘详细使用说明</h2></div><button class="modal-close" type="button" data-manual-close aria-label="关闭使用说明">×</button></header>
+        <div class="manual-layout">
+          <nav class="manual-nav" aria-label="说明书目录">
+            <a href="#manualQuickStart">快速开始</a>
+            <a href="#manualImage">图片转图纸</a>
+            <a href="#manualVariants">三个版本</a>
+            <a href="#manualEdit">编辑与工具</a>
+            <a href="#manualCreate">自由创作</a>
+            <a href="#manualExport">导出图纸</a>
+            <a href="#manualAccount">账号与库存</a>
+            <a href="#manualFaq">常见问题</a>
+          </nav>
+          <article class="manual-content">
+            <section class="manual-section" id="manualQuickStart">
+              <h3>1. 快速开始</h3>
+              <div class="manual-steps">
+                <div class="manual-step"><b>STEP 01</b><span>上传 JPG、PNG 或 WEBP 图片，建议选主体清楚、光线均匀的图片。</span></div>
+                <div class="manual-step"><b>STEP 02</b><span>选择图纸尺寸和 MARD 221/291 色卡，再比较自动生成的三个版本。</span></div>
+                <div class="manual-step"><b>STEP 03</b><span>选定版本后编辑细节，检查色号与用量，最后点击“导出图纸”。</span></div>
+              </div>
+              <div class="manual-tip">第一次使用建议从 32 × 32 或 50 × 50 开始。格数越大，细节越丰富，需要的拼豆数量和制作时间也越多。</div>
+            </section>
+
+            <section class="manual-section" id="manualImage">
+              <h3>2. 图片转图纸</h3>
+              <h4>上传与选图</h4>
+              <ol>
+                <li>保持在“图片转图纸”标签，点击“选择一张图片”。</li>
+                <li>选择本机图片后，网站会在浏览器中读取并立即生成图纸。</li>
+                <li>要更换图片，先点击原图预览右上角的“×”，再重新上传。</li>
+              </ol>
+              <p>推荐使用主体轮廓明确、背景简单、对比适中的图片。过暗、过曝、严重模糊或包含大量细碎纹理的图片，转换后通常需要更多手动整理。</p>
+              <h4>尺寸与色卡</h4>
+              <ul>
+                <li><strong>图纸规格：</strong>可以直接输入宽高，也可以选择 16、24、32、40、50、100、150 的方形预设；允许范围为 16–200 格。</li>
+                <li><strong>MARD 221 色：</strong>常用标准色范围，颜色更集中，适合优先控制备料种类。</li>
+                <li><strong>MARD 291 色：</strong>颜色选择更丰富，适合需要更多过渡色和细节的图案。</li>
+              </ul>
+              <div class="manual-tip">修改尺寸或色卡会重新计算图纸。开始精细编辑前，建议先确定最终尺寸与色卡。</div>
+            </section>
+
+            <section class="manual-section" id="manualVariants">
+              <h3>3. 理解三个图纸版本</h3>
+              <p>每次图片转换后都会保留三个版本。在导出前可以随时切换，已经对某个版本做过的编辑也会分别保留。</p>
+              <div class="manual-table-wrap">
+                <table class="manual-table">
+                  <thead><tr><th>版本</th><th>特点</th><th>适合场景</th></tr></thead>
+                  <tbody>
+                    <tr><td>版本 1 · 原始识别</td><td>尽量保留原图直接映射出的颜色和细节。</td><td>像素画、清晰插画，或希望自己决定如何清理细节。</td></tr>
+                    <tr><td>版本 2 · 净色优化</td><td>合并部分零散、相近的小色块，让区域更干净。</td><td>人物、卡通图和希望减少杂色、降低制作难度的图案。</td></tr>
+                    <tr><td>版本 3 · 深色增强</td><td>加强深色区域的一致性，同时保护黑色和深色本身的色相。</td><td>暗色轮廓、阴影较多或希望深色结构更明确的图片。</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>建议先分别查看三个版本的脸部、轮廓、文字和深色区域，再选择最接近目标效果的版本继续编辑。</p>
+            </section>
+
+            <section class="manual-section" id="manualEdit">
+              <h3>4. 编辑颜色与图纸工具</h3>
+              <h4>开始和结束编辑</h4>
+              <ol>
+                <li>转换完成后点击“开始编辑”。</li>
+                <li>在左侧颜色板选择颜色，再点击或拖动图纸格子进行修改。</li>
+                <li>点击“结束编辑”锁定当前图纸。切换版本前，当前版本的修改会被保存。</li>
+              </ol>
+              <p>颜色板上方提供 20 种常用色，下方是当前 MARD 色卡的全部颜色。选中的色号会显示清晰的外圈。</p>
+              <h4>右上角工具</h4>
+              <ul>
+                <li><strong>撤销 / 重做：</strong>回退或恢复最近的编辑操作。</li>
+                <li><strong>预览：</strong>暂时隐藏格子中的色号，更直观地查看整体画面；再次点击可恢复色号。</li>
+                <li><strong>网格：</strong>显示或隐藏网格线。</li>
+                <li><strong>缩小 / 放大：</strong>调整屏幕上的查看比例，不改变最终图纸格数。</li>
+                <li><strong>清空画布：</strong>用于清除当前可编辑图纸；执行前请确认不再需要当前内容。</li>
+              </ul>
+              <div class="manual-tip">在“图片转图纸”模式还未上传图片时，预览、网格、放大和缩小不会创建空白格子，网站会提示先上传图片。</div>
+            </section>
+
+            <section class="manual-section" id="manualCreate">
+              <h3>5. 自由创作</h3>
+              <ol>
+                <li>点击“自由创作”或空画布中的“开始自由创作”。</li>
+                <li>如果已有图纸，网站会询问是否保存；登录用户可以保存后继续。</li>
+                <li>设定画布宽高，从颜色板选择色号，然后在格子中点击或拖动绘制。</li>
+                <li>利用撤销、重做、网格与缩放检查细节，完成后导出。</li>
+              </ol>
+              <p>自由创作不需要上传图片，适合像素画、文字图案、原创角色和已有纸质图纸的数字化整理。</p>
+            </section>
+
+            <section class="manual-section" id="manualExport">
+              <h3>6. 导出图纸</h3>
+              <ol>
+                <li>确认版本、尺寸、色卡和编辑内容。</li>
+                <li>查看图纸下方的颜色种类、拼豆总数和用色清单。</li>
+                <li>点击页面右上角“导出图纸”，按提示填写文件名并保存。</li>
+              </ol>
+              <p>导出的高清图纸包含格子、坐标、色号、用色清单和水印，适合打印或在另一台设备上查看。屏幕缩放比例不会影响导出清晰度。</p>
+              <div class="manual-tip">导出前建议把预览切回显示色号，并逐一检查容易混淆的相近颜色和深色区域。</div>
+            </section>
+
+            <section class="manual-section" id="manualAccount">
+              <h3>7. 账号、历史与拼豆库存</h3>
+              <ul>
+                <li><strong>登录 / 注册：</strong>点击顶部账号入口，使用页面提供的方式登录或注册。</li>
+                <li><strong>生成历史：</strong>登录后可以保存图纸，并从“我的豆绘”重新打开历史作品。</li>
+                <li><strong>拼豆库存：</strong>按色号记录现有数量；完成图纸时可核对和更新剩余拼豆。</li>
+                <li><strong>个人资料：</strong>可以修改昵称、地区、头像以及账号支持的密码设置。</li>
+              </ul>
+              <p>未登录也可以进行图片转换、自由创作和导出；需要跨设备保存历史或管理库存时再登录。</p>
+            </section>
+
+            <section class="manual-section" id="manualFaq">
+              <h3>8. 常见问题</h3>
+              <h4>为什么转换后颜色与原图不完全一样？</h4>
+              <p>图纸只能从所选 MARD 色卡中匹配最接近的实体拼豆色。屏幕显示、照片光线和实体批次也会产生差异，重要区域建议人工检查。</p>
+              <h4>为什么图纸看起来太碎？</h4>
+              <p>尝试版本 2、减小图纸尺寸，或换用背景更简单的原图。也可以进入编辑模式合并零散色块。</p>
+              <h4>为什么黑色区域出现其他深色？</h4>
+              <p>先比较版本 1 和版本 3。版本 3 会整理深色区域，但仍建议在编辑模式中用黑色或目标深色修正关键轮廓。</p>
+              <h4>网页运行变慢怎么办？</h4>
+              <p>点击顶部波纹图标关闭互动背景；同时避免使用过大的 200 × 200 图纸。关闭互动背景不会影响转换、编辑和导出。</p>
+              <h4>按钮点击后提示“请先上传图片”怎么办？</h4>
+              <p>当前处于“图片转图纸”模式，请先上传图片；如果想直接画空白图纸，请切换到“自由创作”。</p>
+              <h4>修改后为什么没有立即看到新版本？</h4>
+              <p>网站更新后可刷新页面。若浏览器仍保留旧资源，可执行一次强制刷新（Windows 通常为 Ctrl + F5）。</p>
+            </section>
+          </article>
+        </div>
+      </section>
+    </div>
     <div class="modal-backdrop hidden" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <section class="modal auth-modal">
         <header class="modal-header"><div><span>ACCOUNT</span><h2 id="authTitle">登录豆绘</h2></div><button class="modal-close" data-close-modal="authModal" aria-label="关闭">×</button></header>
@@ -114,6 +246,7 @@
 
     <script src="ripple-background.js?v=default-on-20260714"></script>
     <script src="button-motion.js?v=elastic-buttons-20260715"></script>
+    <script src="manual.js?v=detailed-guide-20260715"></script>
     <script src="palette.js"></script>
     <script src="conversion-strategies.js?v=neutral-black-20260714"></script>
     <script src="app.js?v=canvas-tool-guard-20260715"></script>
