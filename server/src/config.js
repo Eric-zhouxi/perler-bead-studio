@@ -6,8 +6,11 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().min(1).max(65535).default(8787),
-  DATABASE_URL: z.string().min(1),
+  DATABASE_DRIVER: z.enum(['postgres', 'cloudbase']).default('postgres'),
+  DATABASE_URL: z.string().optional().default(''),
   DATABASE_SSL: booleanValue,
+  CLOUDBASE_ENV_ID: z.string().optional().default(''),
+  CLOUDBASE_REGION: z.string().default('ap-shanghai'),
   FRONTEND_ORIGINS: z.string().min(1),
   PUBLIC_API_URL: z.string().url(),
   SESSION_COOKIE_NAME: z.string().default('douhui_session'),
@@ -39,6 +42,12 @@ if (!parsed.success) {
 }
 
 const env = parsed.data;
+if (env.DATABASE_DRIVER === 'postgres' && !env.DATABASE_URL) {
+  throw new Error('Invalid environment configuration:\nDATABASE_URL is required when DATABASE_DRIVER=postgres');
+}
+if (env.DATABASE_DRIVER === 'cloudbase' && !env.CLOUDBASE_ENV_ID) {
+  throw new Error('Invalid environment configuration:\nCLOUDBASE_ENV_ID is required when DATABASE_DRIVER=cloudbase');
+}
 if (env.NODE_ENV === 'production' && !env.COOKIE_SECURE) {
   throw new Error('Invalid environment configuration:\nCOOKIE_SECURE must be true in production');
 }

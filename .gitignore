@@ -4,5 +4,6 @@
 node_modules/
 server/node_modules/
 coverage/
+server/dist/
 *.log
 .DS_Store

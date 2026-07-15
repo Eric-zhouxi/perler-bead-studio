@@ -30,19 +30,29 @@ npm test
 
 集成测试使用内存 PostgreSQL，执行正式迁移并覆盖注册、会话、普通用户隔离、管理员跨账号查看与删除、库存扣减幂等和色卡校验。
 
-## 腾讯云上线
+## 腾讯 CloudBase 上线
 
-1. 在腾讯云容器服务、轻量应用服务器或云托管部署 `Dockerfile`，Node.js 运行时要求 20 或更高版本。
-2. 创建 PostgreSQL，并通过私有网络提供 `DATABASE_URL`；生产环境建议开启 TLS，并设置 `DATABASE_SSL=true`。
-3. 为 API 绑定 HTTPS 域名，将 `PUBLIC_API_URL` 设置为完整 API 地址。
-4. 将 `FRONTEND_ORIGINS` 设置为允许访问账号 API 的前端来源，例如 `https://eric-zhouxi.github.io` 和将来的自定义域名。
-5. 设置 `COOKIE_SECURE=true`。当前 GitHub Pages 与 API 跨站时设置 `COOKIE_SAME_SITE=none`；使用同站自定义子域名时优先 `lax`。
-6. 在腾讯云短信控制台申请应用、签名和验证码模板，填写 `TENCENT_SMS_*`；模板参数依次为验证码、有效分钟数。
-7. 在微信开放平台创建网站应用，将回调设置为 `PUBLIC_API_URL/auth/oauth/wechat/callback`，填写 `WECHAT_APP_ID` 和 `WECHAT_APP_SECRET`。
-8. 在 QQ 互联创建网站应用，将回调设置为 `PUBLIC_API_URL/auth/oauth/qq/callback`，填写 `QQ_APP_ID` 和 `QQ_APP_KEY`。
-9. 创建私有 COS 存储桶，填写 `COS_BUCKET` 与 `COS_REGION`。可选用 `COS_PUBLIC_BASE_URL` 配置 CDN，否则头像使用短期签名 URL。
-10. 在容器启动前运行 `npm run migrate`，再运行 `npm start`；健康检查地址为 `/health`。
-11. 将前端 `api-config.js` 中的 `DOUHUI_API_BASE` 改为 HTTPS API 地址，重新发布 GitHub Pages。
+当前生产环境使用普通 Event 云函数 `douhui-api-gateway`，由 HTTP 访问服务把 `/api` 转发到函数。免费套餐不提供 VPC，因此云函数不直连 PostgreSQL 私网地址，而是使用运行时临时身份签名调用 CloudBase `ExecutePGSql` HTTPS 接口。
+
+生产环境需要设置：
+
+- `DATABASE_DRIVER=cloudbase`
+- `CLOUDBASE_ENV_ID=douhui-prod-d1g1urejqdaeee4d4`
+- `CLOUDBASE_REGION=ap-shanghai`
+- `PUBLIC_API_URL=https://douhui-prod-d1g1urejqdaeee4d4-1453834128.ap-shanghai.app.tcloudbase.com/api`
+- `FRONTEND_ORIGINS=https://eric-zhouxi.github.io`
+- `COOKIE_SECURE=true` 与 `COOKIE_SAME_SITE=none`
+
+数据库迁移通过已登录的 CloudBase CLI 执行。`ExecutePGSql` 每次只执行一条语句，因此迁移文件需要按分号拆分后逐条运行；不要把数据库密码或 API Key 写进仓库。构建和部署命令：
+
+```powershell
+npm run build:cloudbase
+npx --yes --package=@cloudbase/cli@latest tcb fn deploy douhui-api-gateway -e douhui-prod-d1g1urejqdaeee4d4 --yes
+```
+
+生产健康检查地址为 `PUBLIC_API_URL/health`。前端 `api-config.js` 已指向该 HTTPS API。
+
+手机号注册仍需要短信通道。可在 CloudBase 身份认证中启用短信验证码，或在腾讯云短信控制台申请应用、签名和模板后填写 `TENCENT_SMS_*`；启用前先确认免费额度和超额费用。微信、QQ、COS 头像同样只在对应环境变量完整配置后启用。
 
 ## 创建管理员
 
@@ -59,4 +69,4 @@ npm run admin:create
 
 ## 必填环境变量
 
-完整清单见 `.env.example`。生产机密应保存在腾讯云密钥管理服务或部署平台的加密环境变量中，不要提交 `.env`、短信密钥、OAuth Secret、COS Secret 或管理员密码。
+完整清单见 `.env.example`。生产机密应保存在腾讯云密钥管理服务或部署平台的加密环境变量中，不要提交 `.env`、短信密钥、OAuth Secret、COS Secret 或管理员密码。CloudBase 云函数运行时自动注入的 `TENCENTCLOUD_*` 临时凭据也不得记录到日志或返回给客户端。

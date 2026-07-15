@@ -24,7 +24,9 @@
 
 ## 本地使用
 
-图纸编辑功能可直接打开 `index.html` 使用。账号功能需要先部署 `server/`，再将 `api-config.js` 中的 `DOUHUI_API_BASE` 设置为 HTTPS API 地址。
+图纸编辑功能可直接打开 `index.html` 使用。账号 API 已部署到腾讯 CloudBase，`api-config.js` 已配置生产 HTTPS 地址；本地开发如需连接本地后端，可在页面加载前覆盖 `window.DOUHUI_API_BASE`。
+
+当前密码登录、会话、资料、图纸和库存接口已连接免费 PostgreSQL。新用户手机号注册还需要单独启用短信验证码通道；在短信通道启用前，接口会明确返回“短信服务尚未配置”，不会伪造验证码或降低注册安全性。
 
 推送到 `main` 分支后，GitHub Actions 会自动发布 GitHub Pages 网站。
 
