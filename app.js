@@ -543,12 +543,19 @@ function palette() {
       wrap.className = 'palette-entry';
       const b = document.createElement('button');
       b.className = 'swatch' + (c === selected ? ' selected' : '');
+      b.dataset.colorId = c[0];
       b.style.background = c[1];
       b.title = c[0];
       b.onclick = () => {
         selected = c;
-        palette();
+        document.querySelectorAll('.swatch[data-color-id]').forEach(swatch => {
+          const active = swatch.dataset.colorId === c[0];
+          swatch.classList.toggle('selected', active);
+          swatch.setAttribute('aria-pressed', String(active));
+        });
       };
+      b.setAttribute('aria-label', `选择 ${c[0]} 色`);
+      b.setAttribute('aria-pressed', String(c === selected));
       const label = document.createElement('span');
       label.textContent = c[0];
       wrap.append(b, label);

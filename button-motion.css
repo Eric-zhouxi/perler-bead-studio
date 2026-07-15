@@ -1,0 +1,113 @@
+:root {
+  --button-spring: cubic-bezier(.22, 1.38, .36, 1);
+  --button-ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  transform-origin: center;
+  transition:
+    transform .46s var(--button-spring),
+    filter .24s var(--button-ease),
+    box-shadow .34s var(--button-ease),
+    border-color .24s ease,
+    background-color .24s ease,
+    color .24s ease;
+}
+
+button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--orange) 35%, transparent);
+  outline-offset: 3px;
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px) scale(.94);
+  filter: brightness(.98);
+  transition-duration: .09s;
+}
+
+button.elastic-confirm {
+  animation: button-elastic-confirm .5s var(--button-spring);
+}
+
+@keyframes button-elastic-confirm {
+  0% { transform: translateY(1px) scale(.94); }
+  46% { transform: translateY(-1px) scale(1.055); }
+  72% { transform: translateY(0) scale(.985); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.palette-entry .swatch {
+  transition:
+    transform .5s var(--button-spring),
+    filter .24s ease,
+    box-shadow .38s var(--button-ease),
+    border-color .24s ease;
+}
+
+.palette-entry .swatch.selected {
+  border-color: var(--ink);
+  transform: scale(1.09);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--ink), 0 8px 18px #20201e24;
+}
+
+.palette-entry span {
+  transition: color .24s ease, transform .42s var(--button-spring), font-weight .2s ease;
+}
+
+.palette-entry:has(.swatch.selected) span {
+  color: var(--ink);
+  font-weight: 700;
+  transform: translateY(1px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover {
+    transform: translateY(-1.5px) scale(1.018);
+    filter: brightness(1.035) saturate(1.04);
+  }
+
+  button:not(:disabled):hover:active {
+    transform: translateY(1px) scale(.94);
+  }
+
+  .primary-button:hover {
+    filter: brightness(1.14);
+    box-shadow: 4px 5px 0 var(--orange), 0 10px 24px #20201e20;
+  }
+
+  .text-button:hover {
+    color: var(--ink);
+  }
+
+  .palette-entry .swatch:hover {
+    transform: translateY(-2px) scale(1.15);
+    box-shadow: 0 0 0 3px #fff, 0 0 0 4px #20201e55, 0 10px 22px #20201e20;
+  }
+
+  .palette-entry .swatch.selected:hover {
+    transform: translateY(-2px) scale(1.18);
+  }
+
+  .palette-entry:has(.swatch:hover) span {
+    color: var(--ink);
+    transform: translateY(1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .palette-entry .swatch,
+  .palette-entry span {
+    animation: none !important;
+    transition-duration: .01ms !important;
+  }
+
+  button:not(:disabled):hover,
+  button:not(:disabled):active,
+  .palette-entry .swatch:hover,
+  .palette-entry .swatch.selected {
+    transform: none;
+  }
+}
+

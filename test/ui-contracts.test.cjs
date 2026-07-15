@@ -6,13 +6,16 @@ test('conversion strategies load before the app and expose exactly three version
   const html = fs.readFileSync('./index.html', 'utf8');
   assert.ok(html.indexOf('id="ambientCanvas"') < html.indexOf('class="app-shell"'));
   assert.ok(html.indexOf('ripple-background.js') < html.indexOf('app.js'));
+  assert.ok(html.indexOf('button-motion.js') < html.indexOf('app.js'));
+  assert.match(html, /button-motion\.css\?v=elastic-buttons-20260715/);
+  assert.match(html, /button-motion\.js\?v=elastic-buttons-20260715/);
   assert.match(html, /ripple-background\.js\?v=default-on-20260714/, 'the default-on behavior must bypass stale cached scripts');
   assert.doesNotMatch(html, /ambient-background\\.js/, 'the retired script name must not be reused because browsers may cache an incompatible version');
   assert.match(html, /<canvas[^>]*id="ambientCanvas"[^>]*aria-hidden="true"/);
   assert.match(html, /id="ambientToggle"[^>]*aria-pressed="false"/);
   assert.ok(html.indexOf('conversion-strategies.js') < html.indexOf('app.js'));
   assert.match(html, /conversion-strategies\.js\?v=neutral-black-20260714/, 'the neutral-black matcher must bypass stale cached strategies');
-  assert.match(html, /app\.js\?v=neutral-black-20260714/, 'the neutral-black line protection must bypass stale cached app scripts');
+  assert.match(html, /app\.js\?v=neutral-black-elastic-buttons-20260715/, 'color selection motion and neutral-black protection must bypass stale cached app scripts');
   assert.equal((html.match(/data-pattern-variant=/g) || []).length, 3);
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length, 'HTML ids must remain unique');
