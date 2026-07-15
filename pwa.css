@@ -1,0 +1,24 @@
+.install-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.install-button.hidden { display: none; }
+
+.install-button svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 800px) {
+  .top-actions .install-button { display: inline-flex; }
+  .top-actions .install-button.hidden { display: none; }
+  .install-button-label { display: none; }
+}

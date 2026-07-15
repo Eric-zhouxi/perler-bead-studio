@@ -4,18 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="使用 MARD 221 或 291 标准色号将图片转换为可导出的拼豆图纸。" />
+    <meta name="theme-color" content="#f8f7f3" />
     <title>豆绘 · MARD 拼豆图纸</title>
+    <link rel="manifest" href="manifest.webmanifest?v=1.1.0" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <link rel="stylesheet" href="style.css?v=tooltip-up-20260715" />
     <link rel="stylesheet" href="auth.css" />
     <link rel="stylesheet" href="button-motion.css?v=elastic-buttons-20260715" />
     <link rel="stylesheet" href="manual.css?v=detailed-guide-20260715" />
+    <link rel="stylesheet" href="pwa.css?v=installable-app-20260715" />
   </head>
   <body>
     <canvas class="ambient-canvas hidden" id="ambientCanvas" aria-hidden="true"></canvas>
     <main class="app-shell">
       <header class="topbar">
         <a class="brand" href="#"><span class="brand-mark">◈</span>豆绘<span>PERLER STUDIO</span></a>
-        <div class="top-actions"><button class="text-button manual-button" id="manualBtn" type="button" aria-haspopup="dialog" aria-controls="manualModal"><span class="manual-button-icon" aria-hidden="true">?</span><span class="manual-button-label">使用说明</span></button><button class="user-button" id="userBtn" type="button"><span class="user-avatar" id="userAvatar">豆</span><span id="userName">登录</span></button><button class="icon-button" id="ambientToggle" type="button" aria-label="开启互动背景" aria-pressed="false" data-tooltip="开启互动背景"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/><path d="M3 15c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/></svg></button><button class="icon-button" id="clearBtn" aria-label="清空画布" data-tooltip="清空画布"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button><button class="primary-button" id="saveBtn">导出图纸</button></div>
+        <div class="top-actions"><button class="text-button manual-button" id="manualBtn" type="button" aria-haspopup="dialog" aria-controls="manualModal"><span class="manual-button-icon" aria-hidden="true">?</span><span class="manual-button-label">使用说明</span></button><button class="text-button install-button" id="pwaInstallBtn" type="button" aria-label="安装豆绘应用"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="install-button-label">安装应用</span></button><button class="user-button" id="userBtn" type="button"><span class="user-avatar" id="userAvatar">豆</span><span id="userName">登录</span></button><button class="icon-button" id="ambientToggle" type="button" aria-label="开启互动背景" aria-pressed="false" data-tooltip="开启互动背景"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/><path d="M3 15c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 4.3-3 6.5 0"/></svg></button><button class="icon-button" id="clearBtn" aria-label="清空画布" data-tooltip="清空画布"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button><button class="primary-button" id="saveBtn">导出图纸</button></div>
       </header>
 
       <section class="hero">
@@ -73,6 +78,7 @@
         <div class="manual-layout">
           <nav class="manual-nav" aria-label="说明书目录">
             <a href="#manualQuickStart">快速开始</a>
+            <a href="#manualInstall">安装应用</a>
             <a href="#manualImage">图片转图纸</a>
             <a href="#manualVariants">三个版本</a>
             <a href="#manualEdit">编辑与工具</a>
@@ -90,6 +96,17 @@
                 <div class="manual-step"><b>STEP 03</b><span>选定版本后编辑细节，检查色号与用量，最后点击“导出图纸”。</span></div>
               </div>
               <div class="manual-tip">第一次使用建议从 32 × 32 或 50 × 50 开始。格数越大，细节越丰富，需要的拼豆数量和制作时间也越多。</div>
+            </section>
+
+            <section class="manual-section" id="manualInstall">
+              <h3>1.1 安装豆绘应用</h3>
+              <ul>
+                <li><strong>Windows / Android：</strong>点击网站顶部“安装应用”，再确认浏览器显示的安装提示。安装后可从桌面、开始菜单或主屏幕打开。</li>
+                <li><strong>iPhone / iPad：</strong>点击“安装应用”查看提示，然后使用浏览器的“分享”菜单，选择“添加到主屏幕”。</li>
+                <li><strong>其他浏览器：</strong>如果没有系统安装弹窗，请打开浏览器菜单，选择“安装应用”或“将此网站作为应用安装”。</li>
+              </ul>
+              <p>安装后的豆绘以独立窗口运行。图片转换、编辑、色卡和说明书等静态功能可在缓存完成后离线打开；登录、云端历史、头像和库存同步仍需要网络。</p>
+              <div class="manual-tip">若顶部没有“安装应用”，通常表示豆绘已经以应用模式打开。卸载方式与普通应用一致，可在系统应用列表或浏览器的应用管理页面中操作。</div>
             </section>
 
             <section class="manual-section" id="manualImage">
@@ -247,6 +264,7 @@
     <script src="ripple-background.js?v=default-on-20260714"></script>
     <script src="button-motion.js?v=elastic-buttons-20260715"></script>
     <script src="manual.js?v=detailed-guide-20260715"></script>
+    <script src="pwa.js?v=installable-app-20260715"></script>
     <script src="palette.js"></script>
     <script src="conversion-strategies.js?v=neutral-black-20260714"></script>
     <script src="app.js?v=canvas-tool-guard-20260715"></script>

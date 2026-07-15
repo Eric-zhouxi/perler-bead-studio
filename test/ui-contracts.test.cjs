@@ -8,6 +8,7 @@ test('conversion strategies load before the app and expose exactly three version
   assert.ok(html.indexOf('ripple-background.js') < html.indexOf('app.js'));
   assert.ok(html.indexOf('button-motion.js') < html.indexOf('app.js'));
   assert.ok(html.indexOf('manual.js') < html.indexOf('app.js'));
+  assert.ok(html.indexOf('pwa.js') < html.indexOf('app.js'));
   assert.match(html, /button-motion\.css\?v=elastic-buttons-20260715/);
   assert.match(html, /button-motion\.js\?v=elastic-buttons-20260715/);
   assert.match(html, /ripple-background\.js\?v=default-on-20260714/, 'the default-on behavior must bypass stale cached scripts');

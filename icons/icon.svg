@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">豆绘应用图标</title>
+  <desc id="description">暖白底色上的橙色拼豆菱形标志</desc>
+  <rect width="512" height="512" rx="112" fill="#f8f7f3"/>
+  <rect x="38" y="38" width="436" height="436" rx="88" fill="none" stroke="#20201e" stroke-width="12"/>
+  <g stroke="#20201e" stroke-width="10">
+    <circle cx="256" cy="112" r="34" fill="#ff5a36"/>
+    <circle cx="184" cy="184" r="34" fill="#ff5a36"/>
+    <circle cx="256" cy="184" r="34" fill="#f8f7f3"/>
+    <circle cx="328" cy="184" r="34" fill="#ff5a36"/>
+    <circle cx="112" cy="256" r="34" fill="#ff5a36"/>
+    <circle cx="184" cy="256" r="34" fill="#f8f7f3"/>
+    <circle cx="256" cy="256" r="34" fill="#ff5a36"/>
+    <circle cx="328" cy="256" r="34" fill="#f8f7f3"/>
+    <circle cx="400" cy="256" r="34" fill="#ff5a36"/>
+    <circle cx="184" cy="328" r="34" fill="#ff5a36"/>
+    <circle cx="256" cy="328" r="34" fill="#f8f7f3"/>
+    <circle cx="328" cy="328" r="34" fill="#ff5a36"/>
+    <circle cx="256" cy="400" r="34" fill="#ff5a36"/>
+  </g>
+</svg>

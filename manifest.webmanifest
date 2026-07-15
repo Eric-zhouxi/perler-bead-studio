@@ -1,0 +1,29 @@
+{
+  "id": "./",
+  "name": "豆绘 · MARD 拼豆图纸",
+  "short_name": "豆绘",
+  "description": "将图片转换为 MARD 拼豆图纸，支持三个版本、手动编辑、用色统计与高清导出。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f8f7f3",
+  "theme_color": "#f8f7f3",
+  "categories": ["graphics", "utilities", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

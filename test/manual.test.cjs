@@ -60,7 +60,7 @@ test('manual includes every major workflow and versioned assets', () => {
   assert.match(html, /id="manualModal"[^>]*aria-hidden="true"/);
   assert.match(html, /manual\.css\?v=detailed-guide-20260715/);
   assert.match(html, /manual\.js\?v=detailed-guide-20260715/);
-  ['manualQuickStart', 'manualImage', 'manualVariants', 'manualEdit', 'manualCreate', 'manualExport', 'manualAccount', 'manualFaq']
+  ['manualQuickStart', 'manualInstall', 'manualImage', 'manualVariants', 'manualEdit', 'manualCreate', 'manualExport', 'manualAccount', 'manualFaq']
     .forEach(id => assert.match(html, new RegExp(`id="${id}"`)));
   assert.match(html, /版本 1 · 原始识别/);
   assert.match(html, /版本 2 · 净色优化/);
