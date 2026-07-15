@@ -123,6 +123,12 @@ function loadStudio(pixelData) {
     button.dataset.paletteSize = String(size);
     return button;
   });
+  const modeButtons = ['image', 'create'].map(mode => {
+    const button = new ElementStub(`mode-${mode}`, ['mode']);
+    button.dataset.mode = mode;
+    if (mode === 'image') button.classList.add('active');
+    return button;
+  });
 
   const document = {
     head: new ElementStub('head'),
@@ -141,6 +147,7 @@ function loadStudio(pixelData) {
     querySelectorAll(selector) {
       if (selector === '[data-pattern-variant]') return variantButtons;
       if (selector === '[data-palette-size]') return paletteButtons;
+      if (selector === '.mode') return modeButtons;
       return [];
     },
   };
@@ -166,6 +173,8 @@ function loadStudio(pixelData) {
       convert,
       editCell(x, y, code) { beads[y][x] = paletteData.find(item => item[0] === code); },
       selectPatternVariant,
+      startFreshCreate,
+      startImageMode,
       state() {
         const usage = colorCounts();
         return {
@@ -174,12 +183,14 @@ function loadStudio(pixelData) {
           usage,
           singletonColors: usage.filter(([, count]) => count === 1).length,
           beads: beads.map(row => row.map(entry => entry?.[0] || null)),
+          activeMode,
+          hasContent: usedBeads().length > 0,
         };
       },
     };
   `;
   vm.runInContext(`${paletteSource}\n${appSource}\n${testApi}`, context);
-  return { api: context.__studioTest, elements, variantButtons };
+  return { api: context.__studioTest, context, elements, modeButtons, variantButtons };
 }
 
 test('the real app generates three selectable conversion variants', () => {
@@ -234,4 +245,29 @@ test('image canvas tools require an uploaded image before rendering', () => {
   assert.equal(zoomLabel.textContent, '');
   assert.equal(gridButton.classList.contains('active'), false);
   assert.equal(previewButton.classList.contains('active'), false);
+});
+
+test('leaving a drawing for image mode asks first, then restores the landing state', () => {
+  const studio = loadStudio(buildPixels());
+  studio.api.startFreshCreate();
+  studio.api.editCell(0, 0, 'A1');
+  let requests = 0;
+  studio.context.accountManager = {
+    requestImageMode() {
+      requests += 1;
+      return true;
+    },
+  };
+
+  studio.modeButtons.find(button => button.dataset.mode === 'image').click();
+  assert.equal(requests, 1);
+  assert.equal(studio.api.state().hasContent, true, 'the drawing must remain until the user chooses');
+
+  studio.api.startImageMode();
+  const state = studio.api.state();
+  assert.equal(state.activeMode, 'image');
+  assert.equal(state.beads.length, 0);
+  assert.equal(studio.elements.get('beadCanvas').classList.contains('hidden'), true);
+  assert.equal(studio.elements.get('emptyState').classList.contains('hidden'), false);
+  assert.equal(studio.elements.get('gridInfo').textContent, '等待创建图纸');
 });

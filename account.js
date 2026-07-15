@@ -10,6 +10,7 @@
   let authProvider = 'phone';
   let phoneMode = 'password';
   let pendingAfterLogin = null;
+  let pendingCanvasMode = null;
   let oauthAttempt = null;
   let oauthTimer = null;
   let otpTimer = null;
@@ -409,8 +410,26 @@
       studio.startFreshCreate();
       return true;
     }
+    pendingCanvasMode = 'create';
+    $('saveChoiceMessage').textContent = '进入自由创作会清空当前画布。';
     openModal('saveChoiceModal');
     return true;
+  }
+
+  function requestImageMode() {
+    if (!studio.hasContent()) {
+      studio.startImageMode();
+      return true;
+    }
+    pendingCanvasMode = 'image';
+    $('saveChoiceMessage').textContent = '进入图片转图纸会清空当前画布。';
+    openModal('saveChoiceModal');
+    return true;
+  }
+
+  function continueCanvasTransition(mode) {
+    if (mode === 'image') studio.startImageMode();
+    else studio.startFreshCreate();
   }
 
   document.querySelectorAll('[data-close-modal]').forEach(button => button.onclick = () => {
@@ -419,6 +438,7 @@
       pendingAfterLogin = null;
       clearOAuth();
     }
+    if (button.dataset.closeModal === 'saveChoiceModal') pendingCanvasMode = null;
   });
   document.querySelectorAll('[data-auth-provider]').forEach(button => button.onclick = () => setAuthProvider(button.dataset.authProvider));
   document.querySelectorAll('[data-phone-auth-mode]').forEach(button => button.onclick = () => setPhoneMode(button.dataset.phoneAuthMode));
@@ -481,16 +501,20 @@
     renderUserButton();
   };
   $('discardAndCreate').onclick = () => {
+    const mode = pendingCanvasMode || 'create';
+    pendingCanvasMode = null;
     closeModal('saveChoiceModal');
-    studio.startFreshCreate();
+    continueCanvasTransition(mode);
   };
   $('saveAndCreate').onclick = () => {
     const snapshot = studio.getSnapshot();
+    const mode = pendingCanvasMode || 'create';
+    pendingCanvasMode = null;
     closeModal('saveChoiceModal');
     requireUser(async () => {
       try {
         await savePatternSnapshot(snapshot);
-        studio.startFreshCreate();
+        continueCanvasTransition(mode);
         studio.notify('当前图纸已保存到生成历史');
       } catch (error) {
         studio.notify(error.message);
@@ -520,5 +544,5 @@
   setPhoneMode('password');
   showServiceNotice();
   restoreSession();
-  window.accountManager = { recordExport, requestFreshCreate };
+  window.accountManager = { recordExport, requestFreshCreate, requestImageMode };
 })();

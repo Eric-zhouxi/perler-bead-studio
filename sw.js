@@ -1,9 +1,9 @@
 const CACHE_PREFIX = 'douhui-static-';
-const CACHE_NAME = `${CACHE_PREFIX}v1.1.0`;
+const CACHE_NAME = `${CACHE_PREFIX}v1.1.1`;
 const APP_SHELL = [
   './',
   './index.html',
-  './style.css?v=tooltip-up-20260715',
+  './style.css?v=mobile-brand-20260715',
   './auth.css',
   './button-motion.css?v=elastic-buttons-20260715',
   './manual.css?v=detailed-guide-20260715',
@@ -14,9 +14,9 @@ const APP_SHELL = [
   './pwa.js?v=installable-app-20260715',
   './palette.js',
   './conversion-strategies.js?v=neutral-black-20260714',
-  './app.js?v=canvas-tool-guard-20260715',
+  './app.js?v=mode-transition-20260715',
   './api-config.js',
-  './account.js',
+  './account.js?v=mode-transition-20260715',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',

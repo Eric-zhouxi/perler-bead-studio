@@ -316,6 +316,8 @@ function drawPattern(target, cell, options = {}) {
 }
 
 function render() {
+  canvas.classList.remove('hidden');
+  $('emptyState').classList.add('hidden');
   const c = cap(Math.round(900 / Math.max(W, H)), 6, 16) * zoom;
   const { width, height, gutter } = patternMetrics(c);
   renderCell = c;
@@ -340,6 +342,7 @@ function legend(list) {
     box.id = 'legend';
     document.querySelector('.canvas-footer').after(box);
   }
+  box.classList.remove('hidden');
   box.innerHTML = `<div class="legend-head"><strong>用色清单</strong><span>${BRAND}</span></div><div class="legend-list">${colorCounts(list).map(([id, count]) => {
     const c = paletteData.find(x => x[0] === id);
     return `<div class="legend-item"><i style="background:${c[1]}"></i><b>${id}</b><small>${count} 颗</small></div>`;
@@ -916,6 +919,39 @@ function resetImportedImage() {
   document.querySelector('.upload-zone').classList.remove('hidden');
 }
 
+function startImageMode() {
+  resetImportedImage();
+  clearPatternVariants();
+  beads = [];
+  zoom = 1;
+  grid = true;
+  showColorNumbers = true;
+  resetHistory();
+  setEditLocked(false);
+  canvas.width = 1;
+  canvas.height = 1;
+  canvas.style.width = '';
+  canvas.style.height = '';
+  canvas.classList.add('hidden');
+  $('emptyState').classList.remove('hidden');
+  $('projectTitle').textContent = '未命名图纸';
+  $('gridInfo').textContent = '等待创建图纸';
+  $('beadTotal').textContent = '0';
+  $('usedColors').textContent = '0';
+  $('zoomLabel').textContent = '100%';
+  $('gridBtn').classList.add('active');
+  $('previewBtn').classList.remove('active');
+  $('previewBtn').setAttribute('aria-pressed', 'false');
+  $('previewBtn').setAttribute('aria-label', '预览图纸（隐藏色号）');
+  $('previewBtn').dataset.tooltip = '预览（隐藏色号）';
+  const legendBox = $('legend');
+  if (legendBox) {
+    legendBox.innerHTML = '';
+    legendBox.classList.add('hidden');
+  }
+  activate('image');
+}
+
 function startFreshCreate() {
   resetImportedImage();
   blank();
@@ -965,13 +1001,14 @@ window.studioApi = {
   loadPattern,
   notify: showToast,
   startFreshCreate,
+  startImageMode,
 };
 
 document.querySelectorAll('.mode').forEach(b => b.onclick = () => {
   if (b.dataset.mode === 'create') {
     window.accountManager?.requestFreshCreate() || startFreshCreate();
-  } else {
-    activate('image');
+  } else if (activeMode !== 'image') {
+    window.accountManager?.requestImageMode() || startImageMode();
   }
 });
 document.querySelectorAll('[data-palette-size]').forEach(button => button.onclick = () => setPaletteSize(+button.dataset.paletteSize));
