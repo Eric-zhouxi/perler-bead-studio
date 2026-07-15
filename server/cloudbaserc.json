@@ -9,7 +9,10 @@
       "handler": "index.main",
       "timeout": 15,
       "memorySize": 256,
-      "installDependency": true
+      "installDependency": true,
+      "envVariables": {
+        "FRONTEND_ORIGINS": "https://eric-zhouxi.github.io,https://douhui-prod-d1g1urejqdaeee4d4-1453834128.tcloudbaseapp.com"
+      }
     }
   ]
 }

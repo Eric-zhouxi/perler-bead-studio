@@ -40,7 +40,7 @@ npm test
 - `CLOUDBASE_ENV_ID=douhui-prod-d1g1urejqdaeee4d4`
 - `CLOUDBASE_REGION=ap-shanghai`
 - `PUBLIC_API_URL=https://douhui-prod-d1g1urejqdaeee4d4-1453834128.ap-shanghai.app.tcloudbase.com/api`
-- `FRONTEND_ORIGINS=https://eric-zhouxi.github.io`
+- `FRONTEND_ORIGINS=https://eric-zhouxi.github.io,https://douhui-prod-d1g1urejqdaeee4d4-1453834128.tcloudbaseapp.com`
 - `COOKIE_SECURE=true` 与 `COOKIE_SAME_SITE=none`
 
 数据库迁移通过已登录的 CloudBase CLI 执行。`ExecutePGSql` 每次只执行一条语句，因此迁移文件需要按分号拆分后逐条运行；不要把数据库密码或 API Key 写进仓库。构建和部署命令：

@@ -2,7 +2,10 @@
 
 一个拼豆图纸 Web App，支持图片转图纸、自由创作和服务端账号系统。
 
-在线使用：<https://eric-zhouxi.github.io/perler-bead-studio/>
+在线使用：
+
+- 中国大陆（CloudBase）：<https://douhui-prod-d1g1urejqdaeee4d4-1453834128.tcloudbaseapp.com/>
+- GitHub Pages（海外备用）：<https://eric-zhouxi.github.io/perler-bead-studio/>
 
 代码仓库：
 
