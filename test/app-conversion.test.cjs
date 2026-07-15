@@ -217,3 +217,21 @@ test('the real app generates three selectable conversion variants', () => {
   assert.equal(restoredEdit.selectedPatternVariant, 2);
   assert.equal(restoredEdit.beads[0][0], 'A1');
 });
+
+test('image canvas tools require an uploaded image before rendering', () => {
+  const studio = loadStudio(buildPixels());
+  const toast = studio.elements.get('toast');
+  const zoomLabel = studio.elements.get('zoomLabel');
+  const gridButton = studio.elements.get('gridBtn');
+  const previewButton = studio.elements.get('previewBtn');
+
+  ['previewBtn', 'gridBtn', 'zoomIn', 'zoomOut'].forEach(id => {
+    toast.textContent = '';
+    studio.elements.get(id).click();
+    assert.equal(toast.textContent, '请先上传图片', `${id} should request an image`);
+  });
+
+  assert.equal(zoomLabel.textContent, '');
+  assert.equal(gridButton.classList.contains('active'), false);
+  assert.equal(previewButton.classList.contains('active'), false);
+});

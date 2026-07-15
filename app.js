@@ -7,7 +7,7 @@ const canvas = $('beadCanvas');
 const ctx = canvas.getContext('2d');
 const WATERMARK = 'ERIC_ZHOU · PERLER STUDIO';
 const BRAND = 'ERIC_ZHOU · 豆绘';
-let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, showColorNumbers = true, history = [], redoHistory = [], timer, editLocked = false;
+let W = 50, H = 50, beads = [], selected = paletteData[0], zoom = 1, source, grid = true, showColorNumbers = true, history = [], redoHistory = [], timer, editLocked = false, activeMode = 'image';
 let renderCell = 16, renderGutter = 0;
 let patternVariants = [], selectedPatternVariant = 0, deepColorMatcher;
 const VARIANT_LABELS = ['原始识别', '净色优化', '深色增强'];
@@ -832,22 +832,39 @@ $('removeImage').onclick = () => {
   $('previewWrap').classList.add('hidden');
   document.querySelector('.upload-zone').classList.remove('hidden');
 };
+
+function canUseCanvasTools() {
+  if (activeMode === 'image' && !source) {
+    showToast('请先上传图片');
+    return false;
+  }
+  if (!beads.length) {
+    showToast('请先创建图纸');
+    return false;
+  }
+  return true;
+}
+
 $('zoomIn').onclick = () => {
+  if (!canUseCanvasTools()) return;
   zoom = cap(zoom + .25, .5, 4);
   $('zoomLabel').textContent = zoom * 100 + '%';
   render();
 };
 $('zoomOut').onclick = () => {
+  if (!canUseCanvasTools()) return;
   zoom = cap(zoom - .25, .5, 4);
   $('zoomLabel').textContent = zoom * 100 + '%';
   render();
 };
 $('gridBtn').onclick = () => {
+  if (!canUseCanvasTools()) return;
   grid = !grid;
   $('gridBtn').classList.toggle('active', grid);
   render();
 };
 $('previewBtn').onclick = () => {
+  if (!canUseCanvasTools()) return;
   showColorNumbers = !showColorNumbers;
   const previewing = !showColorNumbers;
   const button = $('previewBtn');
@@ -882,6 +899,7 @@ document.querySelectorAll('[data-pattern-variant]').forEach(button => {
 });
 
 function activate(mode) {
+  activeMode = mode;
   const creating = mode === 'create';
   document.querySelectorAll('.mode').forEach(q => q.classList.toggle('active', q.dataset.mode === mode));
   document.querySelector('.image-panel').style.display = creating ? 'none' : 'block';
