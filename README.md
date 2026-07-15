@@ -4,6 +4,11 @@
 
 在线使用：<https://eric-zhouxi.github.io/perler-bead-studio/>
 
+代码仓库：
+
+- Gitee（中国大陆镜像）：<https://gitee.com/Eric_zhoux/perler-bead-studio>
+- GitHub（主仓库）：<https://github.com/Eric-zhouxi/perler-bead-studio>
+
 ## 功能
 
 - 可切换 MARD 221 / 291 标准色卡，并使用 Lab 色差转换图片
