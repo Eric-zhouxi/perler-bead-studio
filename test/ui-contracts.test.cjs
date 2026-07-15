@@ -31,6 +31,14 @@ test('version controls retain hidden, active, and mobile layout rules', () => {
   assert.match(auth, /\.canvas-toolbar \.tool-buttons\s*\{[^}]*width:\s*100%;/s);
 });
 
+test('canvas toolbar tooltips remain above the drawing area', () => {
+  const html = fs.readFileSync('./index.html', 'utf8');
+  const style = fs.readFileSync('./style.css', 'utf8');
+  assert.match(html, /style\.css\?v=tooltip-layer-20260715/);
+  assert.match(style, /\.canvas-toolbar\{position:relative;z-index:2;overflow:visible\}/);
+  assert.match(style, /\.canvas-stage\{z-index:1\}/);
+});
+
 test('ambient canvas remains behind the application and never captures interaction', () => {
   const style = fs.readFileSync('./style.css', 'utf8');
   assert.match(style, /body\{[^}]*isolation:isolate;/);
